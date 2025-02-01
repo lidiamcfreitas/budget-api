@@ -50,13 +50,13 @@ jobs:
       if: github.ref == 'refs/heads/main' && matrix.python-version == '3.12'
       run: |
         gcloud auth configure-docker
-        docker buildx build --platform linux/amd64 -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/backend:${{ github.sha }} . --push
+        docker buildx build --platform linux/amd64 -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/backend:latest . --push
 
     - name: Deploy to Cloud Run
       if: github.ref == 'refs/heads/main' && matrix.python-version == '3.12'
       run: |
         gcloud run deploy backend \
-          --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/backend:${{ github.sha }} \
+          --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/backend:latest \
           --platform managed \
           --region europe-west4 \
           --port=8000 \
