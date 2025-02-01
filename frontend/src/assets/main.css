@@ -1,0 +1,92 @@
+:root {
+/* Colors */
+--primary-color: #4F46E5;
+--primary-hover: #4338CA;
+--secondary-color: #10B981;
+--background-color: #F9FAFB;
+--text-color: #1F2937;
+--text-light: #6B7280;
+--border-color: #E5E7EB;
+--error-color: #EF4444;
+--success-color: #10B981;
+
+/* Typography */
+--font-family: 'Inter', system-ui, -apple-system, sans-serif;
+--font-size-sm: 0.875rem;
+--font-size-base: 1rem;
+--font-size-lg: 1.125rem;
+--font-size-xl: 1.25rem;
+
+/* Spacing */
+--spacing-1: 0.25rem;
+--spacing-2: 0.5rem;
+--spacing-3: 0.75rem;
+--spacing-4: 1rem;
+--spacing-6: 1.5rem;
+--spacing-8: 2rem;
+
+/* Border Radius */
+--border-radius-sm: 0.25rem;
+--border-radius: 0.375rem;
+--border-radius-lg: 0.5rem;
+}
+
+/* Reset CSS */
+*, *::before, *::after {
+box-sizing: border-box;
+margin: 0;
+padding: 0;
+}
+
+body {
+background-color: var(--background-color);
+color: var(--text-color);
+font-family: var(--font-family);
+font-size: var(--font-size-base);
+line-height: 1.5;
+-webkit-font-smoothing: antialiased;
+-moz-osx-font-smoothing: grayscale;
+}
+
+/* Global Styles */
+h1, h2, h3, h4, h5, h6 {
+font-weight: 600;
+line-height: 1.25;
+margin-bottom: var(--spacing-4);
+}
+
+button {
+background-color: var(--primary-color);
+color: white;
+border: none;
+padding: var(--spacing-2) var(--spacing-4);
+border-radius: var(--border-radius);
+cursor: pointer;
+font-size: var(--font-size-base);
+transition: background-color 0.2s;
+}
+
+button:hover {
+background-color: var(--primary-hover);
+}
+
+input, select, textarea {
+border: 1px solid var(--border-color);
+border-radius: var(--border-radius);
+padding: var(--spacing-2) var(--spacing-3);
+font-size: var(--font-size-base);
+width: 100%;
+}
+
+input:focus, select:focus, textarea:focus {
+outline: 2px solid var(--primary-color);
+outline-offset: 1px;
+}
+
+.container {
+width: 100%;
+max-width: 1280px;
+margin: 0 auto;
+padding: 0 var(--spacing-4);
+}
+
