@@ -1,0 +1,12 @@
+specVersion: "v1beta"
+serviceId: "budget-api"
+location: "europe-west6"
+schema:
+  source: "./schema"
+  datasource:
+    postgresql:
+      database: "fdcdb"
+      cloudSql:
+        instanceId: "budget-api-fdc"
+      # schemaValidation: "COMPATIBLE"
+connectorDirs: ["./connector"]
