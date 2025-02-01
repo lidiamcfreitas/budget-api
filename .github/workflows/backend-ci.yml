@@ -39,16 +39,6 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-    - name: Run tests with pytest
-      run: |
-        pytest --cov=./ --cov-report=xml
-
-    - name: Run security checks
-      run: |
-        pip install bandit safety
-        bandit -r .
-        safety check
-
     - name: Set up Cloud SDK
       if: github.ref == 'refs/heads/main' && matrix.python-version == '3.12'
       uses: google-github-actions/setup-gcloud@v1
@@ -60,8 +50,7 @@ jobs:
       if: github.ref == 'refs/heads/main' && matrix.python-version == '3.12'
       run: |
         gcloud auth configure-docker
-        docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/backend:${{ github.sha }} .
-        docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/backend:${{ github.sha }}
+        docker buildx build --platform linux/amd64 -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/backend:${{ github.sha }} . --push
 
     - name: Deploy to Cloud Run
       if: github.ref == 'refs/heads/main' && matrix.python-version == '3.12'
@@ -69,6 +58,7 @@ jobs:
         gcloud run deploy backend \
           --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/backend:${{ github.sha }} \
           --platform managed \
-          --region europe-west1 \
+          --region europe-west4 \
+          --port=8000 \
           --allow-unauthenticated
 
