@@ -29,7 +29,7 @@ budget_items: List[BudgetItem] = []
 @app.get("/")
 async def root():
     return {
-        "message": "Welcome to the Budget API",
+        "message": "Welcome to the Budget API. This tests the github CI/CD.",
         "docs": "/docs",
         "version": "1.0.0"
     }
