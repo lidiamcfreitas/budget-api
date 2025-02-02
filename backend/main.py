@@ -1,10 +1,12 @@
-from fastapi import FastAPI, HTTPException, status, Request
+from fastapi import FastAPI, HTTPException, status, Request, Depends
 from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 from uuid import UUID
+from models import User, NameRequest
+from firestore_service import create_user, get_user
+from firebase_admin import auth
 
-from models import BudgetItem, BudgetItemCreate, BudgetItemUpdate, NameRequest
 app = FastAPI(
     title="Budget API",
     description="REST API for budget management",
@@ -23,9 +25,6 @@ app.add_middleware(
     max_age=600,
 )
 
-# In-memory storage for budget items
-budget_items: List[BudgetItem] = []
-
 @app.post("/greet")
 async def greet(request: NameRequest):
     return f"Hi {request.name}!"
@@ -38,38 +37,42 @@ async def root():
         "version": "1.0.0"
     }
 
-@app.post("/budget", response_model=BudgetItem, status_code=status.HTTP_201_CREATED)
-async def create_budget_item(item: BudgetItemCreate):
-    budget_item = BudgetItem(**item.dict())
-    budget_items.append(budget_item)
-    return budget_item
+@app.post("/api/users", response_model=User)
+async def register_user(id_token: str):
+    try:
+        # Verify the Firebase ID token
+        decoded_token = auth.verify_id_token(id_token)
+        user_id = decoded_token['uid']
+        
+        # Check if user already exists
+        existing_user = get_user(user_id)
+        if existing_user:
+            return existing_user
+        
+        # Create new user
+        new_user = User(
+            user_id=user_id,
+            email=decoded_token.get('email', ''),
+        )
+        
+        create_user(new_user)
+        return new_user
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
-@app.get("/budget", response_model=List[BudgetItem])
-async def list_budget_items():
-    return budget_items
-
-@app.get("/budget/{item_id}", response_model=BudgetItem)
-async def get_budget_item(item_id: UUID):
-    for item in budget_items:
-        if item.id == item_id:
-            return item
-    raise HTTPException(status_code=404, detail="Budget item not found")
-
-@app.put("/budget/{item_id}", response_model=BudgetItem)
-async def update_budget_item(item_id: UUID, item: BudgetItemUpdate):
-    for budget_item in budget_items:
-        if budget_item.id == item_id:
-            update_data = item.dict(exclude_unset=True)
-            return budget_item.copy(update=update_data)
-    raise HTTPException(status_code=404, detail="Budget item not found")
-
-@app.delete("/budget/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_budget_item(item_id: UUID):
-    for idx, item in enumerate(budget_items):
-        if item.id == item_id:
-            budget_items.pop(idx)
-            return
-    raise HTTPException(status_code=404, detail="Budget item not found")
+@app.get("/api/users/{user_id}", response_model=User)
+async def get_user_data(user_id: str):
+    user = get_user(user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    return user
 
 @app.get("/routes", tags=["Debug"])
 async def list_routes():

@@ -8,10 +8,7 @@ class NameRequest(BaseModel):
 class User(BaseModel):
     user_id: str
     email: str
-    currency: str = "USD"
-    locale: str = "en_US"
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    subscription_status: str = "free"
     default_budget_id: Optional[str]
 
 class Category(BaseModel):
@@ -32,7 +29,7 @@ class Account(BaseModel):
     budget_id: str
     user_id: str
     name: str
-    type: str  # checking, savings, credit card, cash
+    account_type: str  # checking, savings, credit card, cash
     balance: int  # Stored in cents
     currency: str = "USD"
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -43,20 +40,14 @@ class Transaction(BaseModel):
     budget_id: str
     user_id: str
     amount: int  # Stored in cents
-    currency: str = "USD"
     date: datetime
     payee: Optional[str]
     category_id: Optional[str]
     cleared: bool = False
     notes: Optional[str]
+    pending: bool = False
 
-class RecurringTransaction(BaseModel):
-    recurring_id: str
-    budget_id: str
-    user_id: str
-    amount: int  # Stored in cents
-    currency: str = "USD"
-    category_id: Optional[str]
+class RecurringTransaction(Transaction):
     next_due_date: datetime
     frequency: str  # daily, weekly, biweekly, monthly, yearly
 
