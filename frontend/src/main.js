@@ -1,13 +1,9 @@
 import { createApp } from 'vue'
-import { createRouter, createWebHistory } from 'vue-router'
 import { initializeApp } from 'firebase/app'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
+import { getFirestore } from 'firebase/firestore'
 import App from './App.vue'
-import './assets/main.css'
-
-// Import route components
-import Login from './components/Login.vue'
-import Dashboard from './components/Dashboard.vue'
+import router from './router'
 
 // Firebase configuration
 const firebaseConfig = {
@@ -22,44 +18,17 @@ appId: import.meta.env.VITE_FIREBASE_APP_ID
 // Initialize Firebase
 const firebaseApp = initializeApp(firebaseConfig)
 const auth = getAuth(firebaseApp)
-
-// Router setup
-const routes = [
-{ path: '/login', component: Login },
-{ 
-    path: '/dashboard', 
-    component: Dashboard,
-    meta: { requiresAuth: true }
-},
-{ path: '/', redirect: '/login' }
-]
-
-const router = createRouter({
-history: createWebHistory(),
-routes
-})
-
-// Navigation guard
-router.beforeEach((to, from, next) => {
-const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
-const isAuthenticated = auth.currentUser
-
-if (requiresAuth && !isAuthenticated) {
-    next('/login')
-} else if (!requiresAuth && isAuthenticated) {
-    next('/dashboard')
-} else {
-    next()
-}
-})
+const db = getFirestore(firebaseApp)
 
 // Create Vue app
 const app = createApp(App)
+app.use(router)
 
-// Wait for Firebase auth to initialize before mounting app
+// Initialize app only after checking auth state
+let appMounted = false
 onAuthStateChanged(auth, (user) => {
-if (!app.__vue_app__) {
-    app.use(router)
+if (!appMounted) {
     app.mount('#app')
+    appMounted = true
 }
 })
