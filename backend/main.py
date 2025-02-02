@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 from uuid import UUID
 
-from models import BudgetItem, BudgetItemCreate, BudgetItemUpdate
+from models import BudgetItem, BudgetItemCreate, BudgetItemUpdate, NameRequest
 app = FastAPI(
     title="Budget API",
     description="REST API for budget management",
@@ -25,6 +25,10 @@ app.add_middleware(
 
 # In-memory storage for budget items
 budget_items: List[BudgetItem] = []
+
+@app.post("/greet")
+async def greet(request: NameRequest):
+    return f"Hi {request.name}!"
 
 @app.get("/")
 async def root():
