@@ -6,12 +6,22 @@ from uuid import UUID
 from models import User, NameRequest
 from firestore_service import create_user, get_user
 from firebase_admin import auth
+import logging
+from utils import debug_request, get_token
 
 app = FastAPI(
     title="Budget API",
     description="REST API for budget management",
     version="1.0.0"
 )
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,  # Change to DEBUG for more details
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
+logger = logging.getLogger(__name__)  # Use a named logger
 
 # Configure CORS middleware
 app.add_middleware(
@@ -37,25 +47,54 @@ async def root():
         "version": "1.0.0"
     }
 
+@app.post("/api/test-auth")
+async def test_auth(request: Request):
+    debug_request(request)
+    token = get_token(request)
+    if not token:
+        raise HTTPException(status_code=401, detail="No token provided")
+    logger.info("Decoding token...")
+    decoded_token = auth.verify_id_token(token)
+    user_id = decoded_token['uid']
+    logger.info(f"Decoded user ID: {user_id}")
+    return {"received_token": token}
+
 @app.post("/api/users", response_model=User)
-async def register_user(id_token: str):
+async def register_user(request: Request):
     try:
+        debug_request(request)
+        token = get_token(request)
+        if not token:
+            raise HTTPException(status_code=401, detail="No token provided")
+        
         # Verify the Firebase ID token
-        decoded_token = auth.verify_id_token(id_token)
+        decoded_token = auth.verify_id_token(token)
         user_id = decoded_token['uid']
-        
+        logger.info(f"Decoded user ID: {user_id}")
+
         # Check if user already exists
+        logger.info("Checking if user exists...")
         existing_user = get_user(user_id)
+        logger.info("User exists" if existing_user else "User does not exist")
         if existing_user:
+            logger.info("User already exists")
             return existing_user
+        logger.info("Creating new user")
+        try:
+            # Create new user
+            new_user = User(
+                user_id=user_id,
+                email=decoded_token.get('email', ''),
+            )
+            logger.info("Creating new user...")
         
-        # Create new user
-        new_user = User(
-            user_id=user_id,
-            email=decoded_token.get('email', ''),
-        )
-        
+        except Exception as e:
+            logger.error(f"Error creating user: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e))
         create_user(new_user)
+
         return new_user
         
     except Exception as e:

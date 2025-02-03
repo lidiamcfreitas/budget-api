@@ -9,7 +9,7 @@ class User(BaseModel):
     user_id: str
     email: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    default_budget_id: Optional[str]
+    default_budget_id: Optional[str] = None
 
 class Category(BaseModel):
     category_id: str

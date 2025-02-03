@@ -1,60 +1,44 @@
 <template>
-<div class="login-container">
-    <div class="login-box">
-    <h2>Login</h2>
-    
-    <form @submit.prevent="handleLogin" class="login-form">
-        <div class="form-group">
-        <label for="email">Email</label>
-        <input
-            id="email"
-            v-model="email"
-            type="email"
-            required
-            :disabled="loading"
-            placeholder="Enter your email"
-        />
+    <div class="login-container">
+        <div class="login-box">
+            <h2>Login</h2>
+
+            <form @submit.prevent="handleLogin" class="login-form">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input id="email" v-model="email" type="email" required :disabled="loading"
+                        placeholder="Enter your email" />
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input id="password" v-model="password" type="password" required :disabled="loading"
+                        placeholder="Enter your password" />
+                </div>
+
+                <div v-if="error" class="error-message">
+                    {{ error }}
+                </div>
+
+                <button type="submit" :disabled="loading" class="login-button">
+                    {{ loading ? 'Logging in...' : 'Login with Email' }}
+                </button>
+
+                <div class="divider">or</div>
+
+                <button type="button" @click="handleGoogleLogin" :disabled="loading" class="google-button">
+                    {{ loading ? 'Logging in...' : 'Login with Google' }}
+                </button>
+            </form>
         </div>
-        
-        <div class="form-group">
-        <label for="password">Password</label>
-        <input
-            id="password"
-            v-model="password"
-            type="password"
-            required
-            :disabled="loading"
-            placeholder="Enter your password"
-        />
-        </div>
-
-        <div v-if="error" class="error-message">
-        {{ error }}
-        </div>
-
-        <button type="submit" :disabled="loading" class="login-button">
-        {{ loading ? 'Logging in...' : 'Login with Email' }}
-    </button>
-
-    <div class="divider">or</div>
-
-    <button 
-        type="button" 
-        @click="handleGoogleLogin" 
-        :disabled="loading" 
-        class="google-button"
-    >
-        {{ loading ? 'Logging in...' : 'Login with Google' }}
-    </button>
-</form>
-</div>
-</div>
+    </div>
 </template>
 
 <script setup>
 import { ref } from 'vue';
 import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useRouter } from 'vue-router';
+import axios from "axios";
 
 const router = useRouter();
 const email = ref('')
@@ -65,177 +49,206 @@ const loading = ref(false);
 const emit = defineEmits(['login-success', 'login-error']);
 
 const handleGoogleLogin = async () => {
-error.value = '';
-loading.value = true;
+    error.value = '';
+    loading.value = true;
 
-try {
-    const auth = getAuth();
-    const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    emit('login-success', result.user);
-    router.push('/dashboard');
-} catch (e) {
-    console.error('Google login error:', e);
-    error.value = e.message || 'Failed to login with Google. Please try again.';
-    emit('login-error', e);
-} finally {
-    loading.value = false;
-}
+    try {
+        const auth = getAuth();
+        const provider = new GoogleAuthProvider();
+        const result = await signInWithPopup(auth, provider);
+
+        try {
+            const token = await result.user.getIdToken();  // << This is the correct token
+
+            console.log("Firebase ID Token:", token); // Debugging: Check if it's a valid JWT
+
+            console.log("Token: ", result.user.uid);
+            // const response_request = await axios.post("http://127.0.0.1:8000/api/test-auth",
+            //     {},  // Empty body if no data needs to be sent
+            //     {
+            //         headers: { Authorization: `Bearer ${token}` },
+            //     }
+            // );
+
+            const response = await axios.post("http://127.0.0.1:8000/api/users",
+                {},  // Empty body if no data needs to be sent
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                }
+            );
+
+            if (response.data.success) {
+                emit('login-success', result.user);
+                router.push('/dashboard');
+            }
+        } catch (e) {
+            console.error('DB user creation failed:', e);
+            error.value = e.message || 'DB user creation failed.';
+            emit('login-error', e);
+        } finally {
+            loading.value = false;
+        }
+    } catch (e) {
+        console.error('Google login error:', e);
+        error.value = e.message || 'Failed to login with Google. Please try again.';
+        emit('login-error', e);
+    } finally {
+        loading.value = false;
+    }
 };
 
 const handleLogin = async () => {
-error.value = ''
-loading.value = true;
+    error.value = ''
+    loading.value = true;
 
-try {
-    const auth = getAuth();
-    const userCredential = await signInWithEmailAndPassword(
-    auth,
-    email.value,
-    password.value
-    );
-    
-    emit('login-success', userCredential.user);
-} catch (e) {
-    console.error('Login error:', e);
-    error.value = e.message || 'Failed to login. Please try again.';
-    emit('login-error', e);
-} finally {
-    loading.value = false;
-}
+    try {
+        const auth = getAuth();
+        const userCredential = await signInWithEmailAndPassword(
+            auth,
+            email.value,
+            password.value
+        );
+
+        emit('login-success', userCredential.user);
+    } catch (e) {
+        console.error('Login error:', e);
+        error.value = e.message || 'Failed to login. Please try again.';
+        emit('login-error', e);
+    } finally {
+        loading.value = false;
+    }
 };
 </script>
 
 <style scoped>
 .login-container {
-display: flex;
-justify-content: center;
-align-items: center;
-min-height: 100vh;
-padding: 20px;
-background-color: #f5f5f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+    background-color: #f5f5f5;
 }
 
 .login-box {
-background: white;
-padding: 2rem;
-border-radius: 8px;
-box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-width: 100%;
-max-width: 400px;
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
 }
 
 h2 {
-margin-bottom: 1.5rem;
-color: #333;
-text-align: center;
+    margin-bottom: 1.5rem;
+    color: #333;
+    text-align: center;
 }
 
 .login-form {
-display: flex;
-flex-direction: column;
-gap: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
 .form-group {
-display: flex;
-flex-direction: column;
-gap: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 label {
-color: #666;
-font-size: 0.9rem;
+    color: #666;
+    font-size: 0.9rem;
 }
 
 input {
-padding: 0.75rem;
-border: 1px solid #ddd;
-border-radius: 4px;
-font-size: 1rem;
-transition: border-color 0.3s;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
 }
 
 input:focus {
-outline: none;
-border-color: #4a90e2;
+    outline: none;
+    border-color: #4a90e2;
 }
 
 input:disabled {
-background-color: #f5f5f5;
-cursor: not-allowed;
+    background-color: #f5f5f5;
+    cursor: not-allowed;
 }
 
 .login-button {
-background-color: #4a90e2;
-color: white;
-padding: 0.75rem;
-border: none;
-border-radius: 4px;
-font-size: 1rem;
-cursor: pointer;
-transition: background-color 0.3s;
+    background-color: #4a90e2;
+    color: white;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
 }
 
 .login-button:hover:not(:disabled) {
-background-color: #357abd;
+    background-color: #357abd;
 }
 
 .login-button:disabled {
-background-color: #ccc;
-cursor: not-allowed;
+    background-color: #ccc;
+    cursor: not-allowed;
 }
 
 .error-message {
-color: #dc3545;
-font-size: 0.9rem;
-margin-top: 0.5rem;
-text-align: center;
+    color: #dc3545;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    text-align: center;
 }
 
 .divider {
-margin: 1rem 0;
-text-align: center;
-position: relative;
+    margin: 1rem 0;
+    text-align: center;
+    position: relative;
 }
 
 .divider::before,
 .divider::after {
-content: '';
-position: absolute;
-top: 50%;
-width: 45%;
-height: 1px;
-background-color: #ddd;
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 45%;
+    height: 1px;
+    background-color: #ddd;
 }
 
 .divider::before {
-left: 0;
+    left: 0;
 }
 
 .divider::after {
-right: 0;
+    right: 0;
 }
 
 .google-button {
-background-color: #4285f4;
-color: white;
-padding: 0.75rem;
-border: none;
-border-radius: 4px;
-font-size: 1rem;
-cursor: pointer;
-width: 100%;
-transition: background-color 0.3s;
+    background-color: #4285f4;
+    color: white;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    width: 100%;
+    transition: background-color 0.3s;
 }
 
 .google-button:hover:not(:disabled) {
-background-color: #357abd;
+    background-color: #357abd;
 }
 
 .google-button:disabled {
-background-color: #ccc;
-cursor: not-allowed;
+    background-color: #ccc;
+    cursor: not-allowed;
 }
 </style>
-
