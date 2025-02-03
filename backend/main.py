@@ -3,8 +3,8 @@ from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 from uuid import UUID
-from models import User, NameRequest
-from firestore_service import create_user, get_user
+from models import User, Budget
+from firestore_service import create_user, get_user, create_budget, get_budget, get_user_budgets
 from firebase_admin import auth
 import logging
 from utils import debug_request, get_token
@@ -35,10 +35,6 @@ app.add_middleware(
     max_age=600,
 )
 
-@app.post("/greet")
-async def greet(request: NameRequest):
-    return f"Hi {request.name}!"
-
 @app.get("/")
 async def root():
     return {
@@ -46,18 +42,6 @@ async def root():
         "docs": "/docs",
         "version": "1.0.0"
     }
-
-@app.post("/api/test-auth")
-async def test_auth(request: Request):
-    debug_request(request)
-    token = get_token(request)
-    if not token:
-        raise HTTPException(status_code=401, detail="No token provided")
-    logger.info("Decoding token...")
-    decoded_token = auth.verify_id_token(token)
-    user_id = decoded_token['uid']
-    logger.info(f"Decoded user ID: {user_id}")
-    return {"received_token": token}
 
 @app.post("/api/users", response_model=User)
 async def register_user(request: Request):
@@ -124,6 +108,115 @@ async def list_routes():
                 "methods": route.methods
             })
     return {"routes": routes}
+
+@app.post("/api/budgets", response_model=Budget)
+async def create_new_budget(request: Request, budget: Budget):
+    try:
+        debug_request(request)
+        token = get_token(request)
+        if not token:
+            raise HTTPException(status_code=401, detail="No token provided")
+        
+        # Verify the Firebase ID token
+        decoded_token = auth.verify_id_token(token)
+        user_id = decoded_token['uid']
+        logger.info(f"Creating budget for user: {user_id}")
+
+        # Verify user exists
+        user = get_user(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Set the user_id in the budget
+        budget.user_id = user_id
+        
+        # Create the budget
+        created_budget = create_budget(budget)
+        logger.info(f"Budget created successfully: {created_budget.budget_id}")
+        
+        return created_budget
+        
+    except Exception as e:
+        logger.error(f"Error creating budget: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+@app.get("/api/budgets/{budget_id}", response_model=Budget)
+async def get_budget_by_id(request: Request, budget_id: str):
+    try:
+        token = get_token(request)
+        if not token:
+            raise HTTPException(status_code=401, detail="No token provided")
+        
+        # Verify the Firebase ID token
+        decoded_token = auth.verify_id_token(token)
+        user_id = decoded_token['uid']
+        
+        budget = get_budget(budget_id)
+        if not budget:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Budget not found"
+            )
+        
+        # Verify user has access to this budget
+        if budget.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to access this budget"
+            )
+        
+        return budget
+        
+    except Exception as e:
+        logger.error(f"Error retrieving budget: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+@app.get("/api/users/{user_id}/budgets", response_model=List[Budget])
+async def get_user_budgets_list(request: Request, user_id: str):
+    try:
+        token = get_token(request)
+        if not token:
+            raise HTTPException(status_code=401, detail="No token provided")
+        
+        # Verify the Firebase ID token
+        decoded_token = auth.verify_id_token(token)
+        token_user_id = decoded_token['uid']
+        
+        # Verify user can only access their own budgets
+        if user_id != token_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to access these budgets"
+            )
+        
+        # Verify user exists
+        user = get_user(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        budgets = get_user_budgets(user_id)
+        logger.info(f"Retrieved {len(budgets)} budgets for user {user_id}")
+        
+        return budgets
+        
+    except Exception as e:
+        logger.error(f"Error retrieving user budgets: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 if __name__ == "__main__":
     import uvicorn

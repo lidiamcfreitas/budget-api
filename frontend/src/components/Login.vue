@@ -63,12 +63,6 @@ const handleGoogleLogin = async () => {
             console.log("Firebase ID Token:", token); // Debugging: Check if it's a valid JWT
 
             console.log("Token: ", result.user.uid);
-            // const response_request = await axios.post("http://127.0.0.1:8000/api/test-auth",
-            //     {},  // Empty body if no data needs to be sent
-            //     {
-            //         headers: { Authorization: `Bearer ${token}` },
-            //     }
-            // );
 
             const response = await axios.post("http://127.0.0.1:8000/api/users",
                 {},  // Empty body if no data needs to be sent

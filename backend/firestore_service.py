@@ -1,4 +1,3 @@
-from google.cloud import firestore
 import firebase_admin
 from firebase_admin import credentials, firestore
 from models import User, Budget, Account, Transaction, RecurringTransaction, Currency
@@ -30,10 +29,6 @@ if not firebase_admin._apps:
 
 # Use the correct Firestore database
 db = firestore.client()
-# db = firestore.client(database="budget-api-firestore")  # Explicitly use the correct Firestore database
-
-# Initialize Firestore client
-# db = firestore.Client()
 
 # User operations
 def create_user(user: User):
@@ -54,23 +49,54 @@ def get_user(user_id: str):
 
 # Budget operations
 def create_budget(budget: Budget):
-    if not get_user(budget.user_id):
-        raise ValueError("User does not exist.")
-    budget_ref = db.collection("budgets").document(budget.budget_id)
-    budget_ref.set(budget.dict())
+    try:
+        if not get_user(budget.user_id):
+            raise ValueError("User does not exist.")
+        # Generate new document reference with auto ID
+        budget_ref = db.collection("budgets").document()
+        # Assign the generated ID to the model
+        budget.budget_id = budget_ref.id
+        # Save the data
+        budget_ref.set(budget.dict())
+        logger.info(f"Created budget with ID: {budget.budget_id}")
+        return budget
+    except Exception as e:
+        logger.error(f"Error creating budget: {e}")
+        raise
 
 def get_budget(budget_id: str):
     budget_ref = db.collection("budgets").document(budget_id).get()
     return budget_ref.to_dict() if budget_ref.exists else None
 
+def get_user_budgets(user_id: str):
+    logger.info(f"Getting budgets for user: {user_id}")
+    try:
+        budgets_ref = db.collection("budgets").where("user_id", "==", user_id).stream()
+        budgets = [budget.to_dict() for budget in budgets_ref]
+        logger.info(f"Found {len(budgets)} budgets for user {user_id}")
+        return budgets
+    except Exception as e:
+        logger.error(f"Error getting budgets for user {user_id}: {e}")
+        return []
+
 # Account operations
 def create_account(account: Account):
-    if not get_user(account.user_id):
-        raise ValueError("User does not exist.")
-    if not get_budget(account.budget_id):
-        raise ValueError("Budget does not exist.")
-    account_ref = db.collection("accounts").document(account.account_id)
-    account_ref.set(account.dict())
+    try:
+        if not get_user(account.user_id):
+            raise ValueError("User does not exist.")
+        if not get_budget(account.budget_id):
+            raise ValueError("Budget does not exist.")
+        # Generate new document reference with auto ID
+        account_ref = db.collection("accounts").document()
+        # Assign the generated ID to the model
+        account.account_id = account_ref.id
+        # Save the data
+        account_ref.set(account.dict())
+        logger.info(f"Created account with ID: {account.account_id}")
+        return account
+    except Exception as e:
+        logger.error(f"Error creating account: {e}")
+        raise
 
 def get_account(account_id: str):
     account_ref = db.collection("accounts").document(account_id).get()
@@ -78,20 +104,30 @@ def get_account(account_id: str):
 
 # Transaction operations
 def create_transaction(transaction: Transaction):
-    if not get_account(transaction.account_id):
-        raise ValueError("Account does not exist.")
-    budget = get_budget(transaction.budget_id)
-    if not budget:
-        raise ValueError("Budget does not exist.")
-    
-    # Validate category exists in budget
-    if transaction.category_id:
-        category_ids = [category["category_id"] for category in budget.get("categories", [])]
-        if transaction.category_id not in category_ids:
-            raise ValueError("Category does not exist in the budget.")
-    
-    transaction_ref = db.collection("transactions").document(transaction.transaction_id)
-    transaction_ref.set(transaction.dict())
+    try:
+        if not get_account(transaction.account_id):
+            raise ValueError("Account does not exist.")
+        budget = get_budget(transaction.budget_id)
+        if not budget:
+            raise ValueError("Budget does not exist.")
+        
+        # Validate category exists in budget
+        if transaction.category_id:
+            category_ids = [category["category_id"] for category in budget.get("categories", [])]
+            if transaction.category_id not in category_ids:
+                raise ValueError("Category does not exist in the budget.")
+        
+        # Generate new document reference with auto ID
+        transaction_ref = db.collection("transactions").document()
+        # Assign the generated ID to the model
+        transaction.transaction_id = transaction_ref.id
+        # Save the data
+        transaction_ref.set(transaction.dict())
+        logger.info(f"Created transaction with ID: {transaction.transaction_id}")
+        return transaction
+    except Exception as e:
+        logger.error(f"Error creating transaction: {e}")
+        raise
 
 def get_transaction(transaction_id: str):
     transaction_ref = db.collection("transactions").document(transaction_id).get()
@@ -99,11 +135,21 @@ def get_transaction(transaction_id: str):
 
 # Recurring Transaction operations
 def create_recurring_transaction(recurring_transaction: RecurringTransaction):
-    if not get_budget(recurring_transaction.budget_id):
-        raise ValueError("Budget does not exist.")
-    
-    recurring_ref = db.collection("recurringTransactions").document(recurring_transaction.recurring_id)
-    recurring_ref.set(recurring_transaction.dict())
+    try:
+        if not get_budget(recurring_transaction.budget_id):
+            raise ValueError("Budget does not exist.")
+        
+        # Generate new document reference with auto ID
+        recurring_ref = db.collection("recurringTransactions").document()
+        # Assign the generated ID to the model
+        recurring_transaction.recurring_id = recurring_ref.id
+        # Save the data
+        recurring_ref.set(recurring_transaction.dict())
+        logger.info(f"Created recurring transaction with ID: {recurring_transaction.recurring_id}")
+        return recurring_transaction
+    except Exception as e:
+        logger.error(f"Error creating recurring transaction: {e}")
+        raise
 
 def get_recurring_transaction(recurring_id: str):
     recurring_ref = db.collection("recurringTransactions").document(recurring_id).get()
