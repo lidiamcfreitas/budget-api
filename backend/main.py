@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, status, Request, Depends
+from fastapi import FastAPI, HTTPException, status, Request, Depends, Path
 from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
@@ -180,8 +180,22 @@ async def get_budget_by_id(request: Request, budget_id: str):
             detail=str(e)
         )
 
-@app.get("/api/users/{user_id}/budgets", response_model=List[Budget])
-async def get_user_budgets_list(request: Request, user_id: str):
+@app.get(
+    "/api/users/{user_id}/budgets",
+    response_model=List[Budget],
+    responses={
+        401: {"description": "Unauthorized - No token provided or invalid token"},
+        403: {"description": "Forbidden - User trying to access another user's budgets"},
+        404: {"description": "User not found"}
+    },
+    tags=["Budgets"],
+    summary="Get all budgets for a user",
+    description="Retrieves all budgets associated with a user. Budgets are returned in alphabetical order by name."
+)
+async def get_user_budgets_list(
+    request: Request,
+    user_id: str = Path(..., description="The ID of the user to get budgets for")
+):
     try:
         token = get_token(request)
         if not token:
@@ -193,6 +207,7 @@ async def get_user_budgets_list(request: Request, user_id: str):
         
         # Verify user can only access their own budgets
         if user_id != token_user_id:
+            logger.warning(f"User {token_user_id} attempted to access budgets of user {user_id}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to access these budgets"
@@ -201,13 +216,17 @@ async def get_user_budgets_list(request: Request, user_id: str):
         # Verify user exists
         user = get_user(user_id)
         if not user:
+            logger.error(f"User {user_id} not found when attempting to retrieve budgets")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
             )
         
         budgets = get_user_budgets(user_id)
-        logger.info(f"Retrieved {len(budgets)} budgets for user {user_id}")
+        # Sort budgets alphabetically by name
+        budgets.sort(key=lambda x: x.name.lower())
+        
+        logger.info(f"Retrieved and sorted {len(budgets)} budgets for user {user_id}")
         
         return budgets
         

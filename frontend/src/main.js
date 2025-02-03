@@ -1,4 +1,5 @@
 import { createApp } from 'vue'
+import { createPinia } from 'pinia'
 import { initializeApp } from 'firebase/app'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
@@ -21,14 +22,19 @@ const auth = getAuth(firebaseApp)
 const db = getFirestore(firebaseApp)
 
 // Create Vue app
+// Create app instance
 const app = createApp(App)
+
+// Create and use Pinia before router
+const pinia = createPinia()
+app.use(pinia)
 app.use(router)
 
 // Initialize app only after checking auth state
 let appMounted = false
 onAuthStateChanged(auth, (user) => {
-if (!appMounted) {
-    app.mount('#app')
-    appMounted = true
-}
+    if (!appMounted) {
+        app.mount('#app')
+        appMounted = true
+    }
 })

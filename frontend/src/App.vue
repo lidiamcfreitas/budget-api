@@ -1,26 +1,44 @@
 <template>
 <div id="app">
+    <div v-if="loading" class="loading-overlay">
+    <div class="spinner"></div>
+    <p>Loading application...</p>
+    </div>
+
+    <div v-else class="app-container">
     <div class="auth-wrapper" v-if="!isAuthenticated && currentRoute !== '/greeting'">
-    <div class="login-container">
+        <div class="login-container">
         <h1 class="app-title">Budget App</h1>
         <Login 
-        @login-success="handleLoginSuccess"
-        @login-error="handleLoginError"
+            @login-success="handleLoginSuccess"
+            @login-error="handleLoginError"
         />
         <div v-if="error" class="error-message">{{ error }}</div>
         <div class="greeting-link">
             <router-link to="/greeting" class="greeting-button">Try Greeting Demo</router-link>
         </div>
+        </div>
     </div>
-    </div>
-    <div v-else class="main-content">
+    
+    <div v-else class="main-container">
         <SideMenu 
-            :user="user"
-            @logout="handleLogout"
+        v-if="isAuthenticated"
+        :user="user"
+        @logout="handleLogout"
         />
-        <main class="content-area">
+        <div class="content-wrapper">
+        <Suspense>
+            <template #default>
             <router-view />
-        </main>
+            </template>
+            <template #fallback>
+            <div class="loading-spinner">
+                <div class="spinner"></div>
+            </div>
+            </template>
+        </Suspense>
+        </div>
+    </div>
     </div>
 </div>
 </template>
@@ -29,28 +47,40 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+import { useBudgetStore } from './stores/budgetStore';
 import Login from './components/Login.vue';
 import SideMenu from './components/SideMenu.vue';
 
 const router = useRouter();
 const route = useRoute();
 const auth = getAuth();
+const budgetStore = useBudgetStore();
 const currentRoute = computed(() => route.path);
 const isAuthenticated = ref(false);
 const user = ref(null);
 const error = ref(null);
+const loading = ref(true);
 
-onMounted(() => {
-onAuthStateChanged(auth, (userData) => {
+onMounted(async () => {
+try {
+    onAuthStateChanged(auth, async (userData) => {
     isAuthenticated.value = !!userData;
     user.value = userData;
+    
     if (userData) {
-    console.log('User is signed in:', userData.email);
-    router.push('/dashboard');
+        console.log('User is signed in:', userData.email);
+        await budgetStore.initializeStore();
+        router.push('/dashboard');
     } else {
-    router.push('/login');
+        router.push('/login');
     }
-});
+    loading.value = false;
+    });
+} catch (err) {
+    console.error('Authentication error:', err);
+    error.value = 'Failed to initialize application';
+    loading.value = false;
+}
 });
 
 const handleLoginSuccess = () => {
@@ -81,9 +111,64 @@ font-family: var(--font-family);
 color: var(--text-color);
 height: 100vh;
 width: 100vw;
+background-color: #f0f2f5;
+}
+
+.app-container {
+height: 100vh;
+width: 100vw;
 display: flex;
 flex-direction: column;
-background-color: #f0f2f5;
+}
+
+.main-container {
+display: flex;
+flex: 1;
+height: 100vh;
+overflow: hidden;
+}
+
+.loading-overlay {
+position: fixed;
+top: 0;
+left: 0;
+right: 0;
+bottom: 0;
+background-color: rgba(255, 255, 255, 0.9);
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+z-index: 1000;
+}
+
+.content-wrapper {
+flex: 1;
+height: 100vh;
+overflow-y: auto;
+padding: 2rem;
+}
+
+.spinner {
+width: 50px;
+height: 50px;
+border: 3px solid var(--border-color);
+border-radius: 50%;
+border-top-color: var(--primary-color);
+animation: spin 1s linear infinite;
+}
+
+.loading-spinner {
+display: flex;
+justify-content: center;
+align-items: center;
+height: 100%;
+}
+
+@keyframes spin {
+100% {
+    transform: rotate(360deg);
+}
 }
 
 .auth-wrapper {
