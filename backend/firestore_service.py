@@ -15,17 +15,10 @@ logger = logging.getLogger(__name__)  # Use a named logger
 # Path to your Firebase service account key JSON file
 FIREBASE_CREDENTIALS_PATH = "/Users/lidiafreitas/programming/keys/budgetapp-449511-firebase-adminsdk-fbsvc-80fc508f2e.json"
 
-# Check if Firebase has already been initialized
-# if not firebase_admin._apps:
-#     cred = credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
-#     firebase_admin.initialize_app(cred)
-
 if not firebase_admin._apps:
     cred = credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
     firebase_admin.initialize_app(cred, {
         "projectId": "budgetapp-449511",
-        # "databaseURL": f"https://firestore.googleapis.com/v1/projects/budgetapp-449511/databases/(default)/documents",
-        # "databaseURL": "https://firestore.googleapis.com/v1/projects/budgetapp-449511/databases/budget-api-firestore/documents",
     })
 
 # Use the correct Firestore database

@@ -39,14 +39,22 @@
     </div>
     </div>
     <nav class="menu-items">
-    <router-link to="/" class="menu-item">
-        <i class="fas fa-home"></i>
-        <span>Dashboard</span>
-    </router-link>
-    <router-link to="/create-budget" class="menu-item">
-        <i class="fas fa-plus-circle"></i>
-        <span>Create Budget</span>
-    </router-link>
+    <div class="menu-items-top">
+        <router-link to="/" class="menu-item">
+            <i class="fas fa-home"></i>
+            <span>Dashboard</span>
+        </router-link>
+        <router-link to="/create-budget" class="menu-item">
+            <i class="fas fa-plus-circle"></i>
+            <span>Create Budget</span>
+        </router-link>
+    </div>
+    <div class="menu-items-bottom">
+        <a @click="handleLogout" class="menu-item logout-btn">
+            <i class="fas fa-sign-out-alt"></i>
+            <span>Logout</span>
+        </a>
+    </div>
     </nav>
 </div>
 </template>
@@ -84,6 +92,15 @@ const handleBudgetSelect = async (event) => {
 
 const navigateToCreateBudget = () => {
     router.push('/create-budget')
+}
+
+const handleLogout = async () => {
+    try {
+        await authStore.logout()
+        router.push('/login')
+    } catch (err) {
+        console.error('Error logging out:', err)
+    }
 }
 
 watch(() => authStore.isAuthenticated, (newValue) => {
@@ -169,9 +186,16 @@ text-align: center;
 }
 
 .menu-items {
-display: flex;
-flex-direction: column;
-gap: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: calc(100vh - 250px); /* Adjust based on header height */
+}
+
+.menu-items-top, .menu-items-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .menu-item {
@@ -240,5 +264,13 @@ font-size: 0.875rem;
 margin-top: 0.5rem;
 text-align: center;
 }
-</style>
 
+.logout-btn {
+    cursor: pointer;
+    margin-bottom: 1rem;
+}
+
+.logout-btn:hover {
+    background-color: rgba(255, 87, 87, 0.2);
+}
+</style>
