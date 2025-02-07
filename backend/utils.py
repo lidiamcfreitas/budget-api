@@ -1,5 +1,15 @@
 from fastapi import  Request
+from pydantic import validator
 import logging
+
+# Store valid currencies in a separate JSON file
+import json
+
+CURRENCY_FILE = "data/valid_currencies.json"
+
+# Load valid currencies from JSON file
+with open(CURRENCY_FILE, "r") as file:
+    VALID_CURRENCIES = set(json.load(file))
 
 # Configure logging
 logging.basicConfig(
@@ -23,3 +33,9 @@ def get_token(request: Request):
     token = token.split("Bearer ")[1] if token else None
     logger.info(f"Received token: {token}")
     return token
+
+@validator("currency")
+def validate_currency(value):
+    if value not in VALID_CURRENCIES:
+        raise ValueError(f"Invalid currency: {value}. Must be a valid ISO 4217 currency code.")
+    return value

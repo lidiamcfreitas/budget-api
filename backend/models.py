@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import List, Optional, Dict
 # Store valid currencies in a separate JSON file
@@ -10,17 +10,21 @@ CURRENCY_FILE = "data/valid_currencies.json"
 with open(CURRENCY_FILE, "r") as file:
     VALID_CURRENCIES = set(json.load(file))
 
-# # List of valid ISO 4217 currency codes
-# VALID_CURRENCIES = {
-#     "USD", "EUR", "GBP", "JPY", "CHF", "AUD", "CAD", "CNY", "INR", "BRL", "ZAR", "SEK", "NOK", "SGD", "HKD", "NZD", "KRW", "MXN", "RUB", "TRY", "IDR", "PLN", "THB", "PHP", "MYR", "HUF", "CZK", "ILS", "CLP", "AED", "COP", "SAR", "PEN", "VND", "BDT", "NGN", "PKR", "EGP", "DZD", "KES", "ARS", "LKR", "UAH", "QAR", "IQD", "OMR", "MAD", "KWD", "BHD", "JOD"
-# }
-
 class User(BaseModel):
     user_id: str
     email: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
     default_budget_id: Optional[str] = None
-    budget_ids: List[str] = []
+
+class Budget(BaseModel):
+    budget_id: Optional[str] = None
+    user_id: str
+    name: str
+    currency: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    def document_path(self) -> str:
+        return f"users/{self.user_id}/budgets/{self.budget_id}"
 
 class Payee(BaseModel):
     payee_id: Optional[str] = None
@@ -31,24 +35,24 @@ class Payee(BaseModel):
     last_used: Optional[datetime]  # Last transaction date with this payee
     imported_aliases: Optional[List[str]]  # Imported payees that match these will be renamed.
 
-class CategoryTarget(BaseModel):
-    target_id: Optional[str] = None
-    user_id: str
-    budget_id: str
-    category_id: str
-    target_amount: int  # Target savings for this category
-    target_type: str  # Type of target (e.g., "weekly", "monthly", "yearly", "by date", "custom")
-    target_due_date: Optional[datetime]  # Due date for the target (if applicable)
-
-class Category(BaseModel):
-    category_id: Optional[str] = None
+class CategoryGroup(BaseModel):
+    group_id: Optional[str] = None
     user_id: str
     budget_id: str
     name: str
-    cash_left_over: int  # Cash left over from last month
+
+class Category(BaseModel):
+    category_id: Optional[str] = None
+    group_id: str
+    name: str
+    cash_left_over: int = 0 # Cash left over from last month
     target_id : Optional[str] = None # Target savings for this category
     assigned_amounts: Dict[str, int] = {}  # Stores assigned amounts by month
-    notes: Optional[str]  # User notes
+    notes: Optional[str] = "" # User notes
+    # Target
+    target_amount: Optional[int] = None
+    target_type: Optional[str] = None  # "weekly", "monthly", "yearly", "by date", "custom"
+    target_due_date: Optional[datetime] = None
 
     def get_transactions(self, month: Optional[str] = None) -> List[Dict]:
         """Fetch all transactions for this category and optionally filter by month."""
@@ -102,26 +106,6 @@ class Category(BaseModel):
             return 0
         return max(0, self.target_amount - self.assigned_this_month)
 
-class CategoryGroup(BaseModel):
-    group_id: Optional[str] = None
-    user_id: str
-    budget_id: str
-    name: str
-    category_ids: List[str] = []
-
-class Budget(BaseModel):
-    budget_id: Optional[str] = None
-    user_id: str
-    name: str
-    currency: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    category_groups: List[CategoryGroup] = []
-
-    @validator("currency")
-    def validate_currency(cls, value):
-        if value not in VALID_CURRENCIES:
-            raise ValueError(f"Invalid currency: {value}. Must be a valid ISO 4217 currency code.")
-        return value
 
 class Account(BaseModel):
     account_id: Optional[str] = None
@@ -133,17 +117,13 @@ class Account(BaseModel):
     currency: str
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
-    @validator("currency")
-    def validate_currency(cls, value):
-        if value not in VALID_CURRENCIES:
-            raise ValueError(f"Invalid currency: {value}. Must be a valid ISO 4217 currency code.")
-        return value
+    @property
+    def document_path(self) -> str:
+        return f"users/{self.user_id}/budgets/{self.budget_id}/accounts/{self.account_id}"
 
 class Transaction(BaseModel):
     transaction_id: Optional[str] = None
     account_id: str
-    budget_id: str
-    user_id: str
     amount: int  # Stored in cents
     date: datetime
     payee: Optional[str]
@@ -151,6 +131,10 @@ class Transaction(BaseModel):
     cleared: bool = False
     notes: Optional[str]
     pending: bool = False
+
+    @property
+    def document_path(self) -> str:
+        return f"users/{self.user_id}/budgets/{self.budget_id}/accounts/{self.account_id}/transactions/{self.transaction_id}"
 
 class RecurringTransaction(Transaction):
     next_due_date: datetime

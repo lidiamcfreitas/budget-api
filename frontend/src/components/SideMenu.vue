@@ -1,36 +1,31 @@
 <template>
 <div class="side-menu">
     <div class="logo-section">
-    <h1>BudgetApp</h1>
+    <h1>Stashi</h1>
+    <!-- <p>Numbers harmony</p> -->
     </div>
     <div class="budget-selector">
-    <div class="current-budget" v-if="budgetStore.selectedBudget">
-        <span class="label">Current Budget:</span>
-        <span class="value">{{ budgetStore.selectedBudget.name }}</span>
-    </div>
-    <select
-        v-model="budgetStore.selectedBudgetId"
-        @change="handleBudgetSelect"
-        :disabled="budgetStore.loading"
-        class="budget-select"
-    >
-        <option value="" disabled>Select a budget</option>
-        <option
-        v-for="budget in budgetStore.sortedBudgets"
-        :key="budget.budget_id"
-        :value="budget.budget_id"
-        >
-        {{ budget.name }}
-        </option>
-    </select>
-    <button
-        @click="navigateToCreateBudget"
-        class="create-budget-btn"
-        :disabled="budgetStore.loading"
-    >
-        <i class="fas fa-plus"></i>
-        Create New Budget
-    </button>
+    <el-dropdown trigger="click" @command="handleBudgetSelect" :disabled="budgetStore.loading">
+        <div class="current-budget" v-if="budgetStore.currentBudget">
+            <span class="label">Current Budget:</span>
+            <span class="value">
+                {{ budgetStore.currentBudget.name }}
+                <el-icon class="el-icon--right"><arrow-down /></el-icon>
+            </span>
+        </div>
+        <template #dropdown>
+            <el-dropdown-menu>
+                <el-dropdown-item
+                    v-for="budget in budgetStore.sortedBudgets"
+                    :key="budget.budget_id"
+                    :command="budget.budget_id"
+                    :disabled="budget.budget_id === budgetStore.currentBudgetId"
+                >
+                    {{ budget.name }}
+                </el-dropdown-item>
+            </el-dropdown-menu>
+        </template>
+    </el-dropdown>
     <div v-if="budgetStore.loading" class="loading-spinner">
         <i class="fas fa-spinner fa-spin"></i>
     </div>
@@ -41,7 +36,11 @@
     <nav class="menu-items">
     <div class="menu-items-top">
         <router-link to="/" class="menu-item">
-            <i class="fas fa-home"></i>
+            <i class="fas fa-wallet"></i>
+            <span>Budget</span>
+        </router-link>
+        <router-link to="/dashboard" class="menu-item">
+            <i class="fas fa-chart-bar"></i>
             <span>Dashboard</span>
         </router-link>
         <router-link to="/create-budget" class="menu-item">
@@ -64,6 +63,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useBudgetStore } from '../stores/budgetStore'
 import { useAuthStore } from '../stores/authStore'
 import { useRouter } from 'vue-router'
+import { ArrowDown } from '@element-plus/icons-vue'
 
 const budgetStore = useBudgetStore()
 const authStore = useAuthStore()
@@ -80,10 +80,10 @@ const loadBudgets = async () => {
     }
 }
 
-const handleBudgetSelect = async (event) => {
+const handleBudgetSelect = async (budgetId) => {
     try {
-        await budgetStore.setActiveBudget(event.target.value)
-        router.push('/dashboard')
+        await budgetStore.setActiveBudget(budgetId)
+        router.push('/')
     } catch (err) {
         error.value = 'Failed to switch budget'
         console.error('Error switching budget:', err)
@@ -227,29 +227,24 @@ border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 margin-bottom: 1rem;
 }
 
-.budget-select {
-width: 100%;
-padding: 0.5rem;
-background-color: rgba(255, 255, 255, 0.1);
-color: white;
-border: 1px solid rgba(255, 255, 255, 0.2);
-border-radius: 0.25rem;
-outline: none;
-cursor: pointer;
+.current-budget {
+    cursor: pointer;
+    transition: background-color 0.3s;
+    padding: 1rem;
+    width: 100%;
 }
 
-.budget-select:focus {
-border-color: rgba(255, 255, 255, 0.3);
+.current-budget:hover {
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
-.budget-select:disabled {
-opacity: 0.7;
-cursor: not-allowed;
+.el-dropdown {
+    width: 100%;
 }
 
-.budget-select option {
-background-color: #2c3e50;
-color: white;
+.el-icon--right {
+    margin-left: 5px;
+    font-size: 12px;
 }
 
 .loading-spinner {

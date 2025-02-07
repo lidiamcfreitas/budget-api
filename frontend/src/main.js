@@ -1,4 +1,7 @@
 import { createApp } from 'vue'
+import ElementPlus from 'element-plus'
+import 'element-plus/dist/index.css'
+import './assets/main.css'
 import { createPinia } from 'pinia'
 import { initializeApp } from 'firebase/app'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
@@ -28,6 +31,7 @@ const app = createApp(App)
 // Create and use Pinia before router
 const pinia = createPinia()
 app.use(pinia)
+app.use(ElementPlus)
 app.use(router)
 
 // Initialize app only after checking auth state

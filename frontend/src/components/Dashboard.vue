@@ -8,17 +8,19 @@
     </header>
     
     <main class="dashboard-content">
-    <section class="user-profile">
+    <div class="dashboard-grid">
+        <section class="user-profile">
         <h2>Profile Information</h2>
         <div v-if="user" class="profile-info">
-        <p><strong>Email:</strong> {{ user.email }}</p>
-        <p><strong>User ID:</strong> {{ user.uid }}</p>
-        <p><strong>Email Verified:</strong> {{ user.emailVerified ? 'Yes' : 'No' }}</p>
+            <p><strong>Email:</strong> {{ user.email }}</p>
+            <p><strong>User ID:</strong> {{ user.uid }}</p>
+            <p><strong>Email Verified:</strong> {{ user.emailVerified ? 'Yes' : 'No' }}</p>
         </div>
         <div v-else class="loading">
-        Loading user information...
+            Loading user information...
         </div>
-    </section>
+        </section>
+    </div>
     </main>
 
     <div v-if="error" class="error-message">
@@ -31,6 +33,7 @@
 import { ref, onMounted } from 'vue';
 import { getAuth, signOut } from 'firebase/auth';
 import { useRouter } from 'vue-router';
+import BudgetView from './BudgetView.vue';
 
 const router = useRouter();
 const user = ref(null);
@@ -63,6 +66,7 @@ try {
 max-width: 1200px;
 margin: 0 auto;
 padding: 2rem;
+padding-left: 250px;
 }
 
 .dashboard-header {
@@ -81,8 +85,16 @@ padding: 2rem;
 box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.dashboard-grid {
+display: grid;
+grid-template-columns: 300px 1fr;
+gap: 2rem;
+}
+
 .user-profile {
-max-width: 600px;
+background: #f8f9fa;
+padding: 1.5rem;
+border-radius: 8px;
 }
 
 .profile-info {
@@ -129,6 +141,10 @@ padding: 1rem 0;
 @media (max-width: 768px) {
 .dashboard {
     padding: 1rem;
+}
+
+.dashboard-grid {
+    grid-template-columns: 1fr;
 }
 
 .dashboard-header {

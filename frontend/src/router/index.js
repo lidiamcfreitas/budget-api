@@ -6,6 +6,7 @@ import Login from '../components/Login.vue'
 import Dashboard from '../components/Dashboard.vue'
 import BudgetCreate from '../components/BudgetCreate.vue'
 import SelectBudget from '../components/SelectBudget.vue'
+import BudgetView from '../components/BudgetView.vue'
 
 const routes = [
 {
@@ -16,6 +17,12 @@ const routes = [
 },
 {
     path: '/',
+    name: 'BudgetView',
+    component: BudgetView,
+    meta: { requiresAuth: true, requiresBudget: true }
+},
+{
+    path: '/dashboard',
     name: 'Dashboard',
     component: Dashboard,
     meta: { requiresAuth: true, requiresBudget: true }

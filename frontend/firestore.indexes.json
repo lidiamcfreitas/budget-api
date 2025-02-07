@@ -1,4 +1,23 @@
 {
-  "indexes": [],
+  "indexes": [
+      {
+      "collectionGroup": "transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+          {
+          "fieldPath": "budget_id",
+          "order": "ASCENDING"
+          },
+          {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+          },
+          {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+          }
+      ]
+      }
+  ],
   "fieldOverrides": []
-}
+  }
