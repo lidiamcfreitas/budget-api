@@ -13,6 +13,7 @@ with open(CURRENCY_FILE, "r") as file:
 class User(BaseModel):
     user_id: str
     email: str
+    name: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     default_budget_id: Optional[str] = None
 

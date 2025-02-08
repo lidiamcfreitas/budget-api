@@ -3,46 +3,20 @@
         <div class="login-box">
             <h2>Login</h2>
 
-            <form @submit.prevent="handleLogin" class="login-form">
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input id="email" v-model="email" type="email" required :disabled="loading"
-                        placeholder="Enter your email" />
-                </div>
-
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input id="password" v-model="password" type="password" required :disabled="loading"
-                        placeholder="Enter your password" />
-                </div>
-
-                <div v-if="error" class="error-message">
-                    {{ error }}
-                </div>
-
-                <button type="submit" :disabled="loading" class="login-button">
-                    {{ loading ? 'Logging in...' : 'Login with Email' }}
-                </button>
-
-                <div class="divider">or</div>
-
-                <button type="button" @click="handleGoogleLogin" :disabled="loading" class="google-button">
+            <button type="button" @click="handleGoogleLogin" :disabled="loading" class="google-button">
                     {{ loading ? 'Logging in...' : 'Login with Google' }}
-                </button>
-            </form>
+            </button>
         </div>
     </div>
 </template>
 
 <script setup>
 import { ref } from 'vue';
-import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useRouter } from 'vue-router';
 import axios from "axios";
 
 const router = useRouter();
-const email = ref('')
-const password = ref('');
 const error = ref('');
 const loading = ref(false);
 
@@ -65,7 +39,11 @@ const handleGoogleLogin = async () => {
             console.log("Token: ", result.user.uid);
 
             const response = await axios.post("http://127.0.0.1:8000/api/users",
-                {},  // Empty body if no data needs to be sent
+                {
+                    user_id: result.user.uid,
+                    email: result.user.email,
+                    name: result.user.displayName,
+                },
                 {
                     headers: { Authorization: `Bearer ${token}` },
                 }
@@ -85,28 +63,6 @@ const handleGoogleLogin = async () => {
     } catch (e) {
         console.error('Google login error:', e);
         error.value = e.message || 'Failed to login with Google. Please try again.';
-        emit('login-error', e);
-    } finally {
-        loading.value = false;
-    }
-};
-
-const handleLogin = async () => {
-    error.value = ''
-    loading.value = true;
-
-    try {
-        const auth = getAuth();
-        const userCredential = await signInWithEmailAndPassword(
-            auth,
-            email.value,
-            password.value
-        );
-
-        emit('login-success', userCredential.user);
-    } catch (e) {
-        console.error('Login error:', e);
-        error.value = e.message || 'Failed to login. Please try again.';
         emit('login-error', e);
     } finally {
         loading.value = false;

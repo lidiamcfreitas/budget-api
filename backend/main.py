@@ -1,11 +1,15 @@
+from services.budget_service import BudgetService
+from services.user_service import UserService
 from fastapi import FastAPI, HTTPException, status, Request, Depends, Path, Body
 from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 from typing import List
 from uuid import UUID
-from firebase_admin import auth
+import firebase_admin
+from firebase_admin import auth, firestore
 from models import User, Budget, CategoryGroup, Category
+from services.user_service import UserService
 
 from firestore_service import (
     create_user, get_user, create_budget, get_budget, get_user_budgets,
@@ -16,69 +20,118 @@ from firestore_service import (
 from utils import debug_request, get_token
 from logger import logger
 
-app = FastAPI(
-    title="Stashi - budget API",
-    description="REST API for budget management",
-    version="1.0.0"
-)
+def create_app():
+    app = FastAPI(
+        title="Stashi - budget API",
+        description="REST API for budget management",
+        version="1.0.0"
+    )
+    # Configure CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # In production, replace with specific origins
+    #    allow_origins=["http://localhost:8080"],  # Vue.js development server
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization", "Accept"],
+        expose_headers=["Content-Length"],
+        max_age=600,
+    )
+    # Path to your Firebase service account key JSON file
+    FIREBASE_CREDENTIALS_PATH = "/Users/lidiafreitas/programming/keys/budgetapp-449511-firebase-adminsdk-fbsvc-80fc508f2e.json"
 
-# Configure CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
-#    allow_origins=["http://localhost:8080"],  # Vue.js development server
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization", "Accept"],
-    expose_headers=["Content-Length"],
-    max_age=600,
-)
+    if not firebase_admin._apps:
+        cred = credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
+        firebase_admin.initialize_app(cred, {
+            "projectId": "budgetapp-449511",
+        })
 
-@app.get("/")
-async def root():
-    return {
-        "message": "Welcome to the Budget API. This tests the github CI/CD.",
-        "docs": "/docs",
-        "version": "1.0.0"
-    }
+    # Use the correct Firestore database
+    db = firestore.client()
+    
+    # # Create services with injected dependencies
+    # budget_service = BudgetService(db)
+    # category_service = CategoryService(db)
+    # # ... other services
+    
+    return app, db
+
+app, db = create_app()
+
+# Create a dependency provider
+def get_db():
+    return firestore.client()
+
+def get_user_service(db: firestore.Client = Depends(get_db)):
+    return UserService(db)
+
+# @app.post("/")
+# async def create_user(
+#     user: User,
+#     user_service: UserService = Depends(get_user_service)
+# ):
+#     return await user_service.create_user(user)
+
+# @app.get("/")
+# async def root():
+#     return {
+#         "message": "Welcome to the Budget API. This tests the github CI/CD.",
+#         "docs": "/docs",
+#         "version": "1.0.0"
+#     }
+
+def verify_user(request: Request):
+    token = get_token(request)
+    if not token:
+        raise HTTPException(status_code=401, detail="No token provided")
+    
+    # Verify the Firebase ID token
+    decoded_token = auth.verify_id_token(token)
+    user_id = decoded_token['uid']
+    logger.info(f"Decoded user ID: {user_id}")
+
+    return user_id
 
 @app.post("/api/users", response_model=User)
-async def register_user(request: Request):
+async def register_user(
+    request: Request,  # Add this to get the full request
+    user: User,
+    user_service: UserService = Depends(get_user_service)
+    ):
     try:
         debug_request(request)
-        token = get_token(request)
-        if not token:
-            raise HTTPException(status_code=401, detail="No token provided")
-        
-        # Verify the Firebase ID token
-        decoded_token = auth.verify_id_token(token)
-        user_id = decoded_token['uid']
-        logger.info(f"Decoded user ID: {user_id}")
-
-        # Check if user already exists
-        logger.info("Checking if user exists...")
-        existing_user = get_user(user_id)
-        logger.info("User exists" if existing_user else "User does not exist")
-        if existing_user:
-            logger.info("User already exists")
-            return existing_user
-        logger.info("Creating new user")
+        verify_user(request)
         try:
-            # Create new user
-            new_user = User(
-                user_id=user_id,
-                email=decoded_token.get('email', ''),
-            )
-            logger.info("Creating new user...")
-        
+            request_data = await request.json()
+            user = User(**request_data)
+            return await user_service.create_user(user)
         except Exception as e:
             logger.error(f"Error creating user: {e}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(e))
-        create_user(new_user)
-
-        return new_user
+        # # Check if user already exists
+        # existing_user = get_user(user_id)
+        # logger.info("User exists" if existing_user else "User does not exist")
+        # if existing_user:
+        #     logger.info("User already exists")
+        #     return existing_user
+        # logger.info("Creating new user")
+        # try:
+        #     # Create new user
+        #     new_user = User(
+        #         user_id=user_id,
+        #         email=decoded_token.get('email', ''),
+        #     )
+        #     logger.info("Creating new user...")
+        
+        # except Exception as e:
+        #     logger.error(f"Error creating user: {e}")
+        #     raise HTTPException(
+        #         status_code=status.HTTP_400_BAD_REQUEST,
+        #         detail=str(e))
+        # create_user(new_user)
+        # return new_user
         
     except Exception as e:
         raise HTTPException(
