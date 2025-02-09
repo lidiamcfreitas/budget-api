@@ -33,11 +33,11 @@ class UserService(BaseService):
         """
         self.logger.debug(f"Creating user with ID: {user.user_id}")
         try:
-            if self.get_user(user.user_id):
-                raise UserServiceException("User already exists")
+            return await self.get_user(user.user_id)
         except UserServiceException:
             user_ref = self.db.collection("users").document(user.user_id)
             user_ref.set(user.dict())
+            return user
         except Exception as e:
             self.log_error(e, {'user_id': user.user_id})
             raise

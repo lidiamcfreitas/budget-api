@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List
 from uuid import UUID
 import firebase_admin
-from firebase_admin import auth, firestore
+from firebase_admin import auth, firestore, credentials
 from models import User, Budget, CategoryGroup, Category
 from services.user_service import UserService
 
@@ -22,7 +22,7 @@ from logger import logger
 
 def create_app():
     app = FastAPI(
-        title="Stashi - budget API",
+        title="Ignite - budget API",
         description="REST API for budget management",
         version="1.0.0"
     )
@@ -94,46 +94,17 @@ def verify_user(request: Request):
 
 @app.post("/api/users", response_model=User)
 async def register_user(
-    request: Request,  # Add this to get the full request
+    request: Request,
     user: User,
     user_service: UserService = Depends(get_user_service)
-    ):
+):
     try:
         debug_request(request)
         verify_user(request)
-        try:
-            request_data = await request.json()
-            user = User(**request_data)
-            return await user_service.create_user(user)
-        except Exception as e:
-            logger.error(f"Error creating user: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e))
-        # # Check if user already exists
-        # existing_user = get_user(user_id)
-        # logger.info("User exists" if existing_user else "User does not exist")
-        # if existing_user:
-        #     logger.info("User already exists")
-        #     return existing_user
-        # logger.info("Creating new user")
-        # try:
-        #     # Create new user
-        #     new_user = User(
-        #         user_id=user_id,
-        #         email=decoded_token.get('email', ''),
-        #     )
-        #     logger.info("Creating new user...")
-        
-        # except Exception as e:
-        #     logger.error(f"Error creating user: {e}")
-        #     raise HTTPException(
-        #         status_code=status.HTTP_400_BAD_REQUEST,
-        #         detail=str(e))
-        # create_user(new_user)
-        # return new_user
-        
+        created_user = await user_service.create_user(user)
+        return created_user
     except Exception as e:
+        logger.error(f"Error creating user: {e}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)

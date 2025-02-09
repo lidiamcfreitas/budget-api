@@ -1,7 +1,8 @@
 <template>
 <div class="side-menu">
     <div class="logo-section">
-    <h1>Stashi</h1>
+    <img src="../../data/ignite_logo_white.png" alt="Ignite Logo" class="logo-image" />
+    <h1>Ignite</h1>
     <!-- <p>Numbers harmony</p> -->
     </div>
     <div class="budget-selector">
@@ -174,7 +175,7 @@ padding: 1rem;
 }
 
 .logo-section {
-padding: 1rem 0;
+padding: 1.5rem 0;
 border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 margin-bottom: 2rem;
 }
