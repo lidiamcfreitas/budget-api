@@ -3,7 +3,7 @@ from typing import List, Optional
 from pydantic import ValidationError
 from models import Account
 from google.cloud import firestore
-from models import Account, AccountType, Currency
+from models import Account
 from .base_service import BaseService
 
 class AccountService(BaseService):

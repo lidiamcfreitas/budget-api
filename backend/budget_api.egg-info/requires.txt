@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+firebase-admin
+python-jose[cryptography]
+python-multipart
+pydantic
+
+[test]
+pytest
+pytest-cov
+httpx
+pytest-asyncio

@@ -44,7 +44,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { useBudgetStore } from './stores/budgetStore';
@@ -61,17 +61,36 @@ const user = ref(null);
 const error = ref(null);
 const loading = ref(true);
 
+watch(isAuthenticated, (newValue, oldValue) => {
+    console.log('Authentication state changed:', {
+        from: oldValue,
+        to: newValue,
+        timestamp: new Date().toISOString(),
+        currentRoute: route.path
+    });
+});
 onMounted(async () => {
 try {
     onAuthStateChanged(auth, async (userData) => {
+    console.log('Auth state changed:', {
+        timestamp: new Date().toISOString(),
+        userData: userData ? {
+            email: userData.email,
+            uid: userData.uid,
+            emailVerified: userData.emailVerified
+        } : null,
+        currentRoute: route.path
+    });
+
     isAuthenticated.value = !!userData;
     user.value = userData;
-    
+
     if (userData) {
-        console.log('User is signed in:', userData.email);
+        console.log('User authentication successful. Initializing store and redirecting to dashboard');
         await budgetStore.initializeStore();
         router.push('/dashboard');
     } else {
+        console.log('No user authenticated. Redirecting to login page');
         router.push('/login');
     }
     loading.value = false;
@@ -84,7 +103,11 @@ try {
 });
 
 const handleLoginSuccess = () => {
-error.value = null;
+    console.log('Login success handler called', {
+        timestamp: new Date().toISOString(),
+        currentRoute: route.path
+    });
+    error.value = null;
 };
 
 const handleLoginError = (err) => {
@@ -93,10 +116,16 @@ console.error('Login error:', err);
 };
 
 const handleLogout = async () => {
-try {
-    await signOut(auth);
-    router.push('/login');
-} catch (err) {
+    console.log('Logout initiated', {
+        timestamp: new Date().toISOString(),
+        currentUser: user.value?.email,
+        currentRoute: route.path
+    });
+    try {
+        await signOut(auth);
+        console.log('Logout successful, redirecting to login page');
+        router.push('/login');
+    } catch (err) {
     console.error('Logout error:', err);
     error.value = 'Failed to logout. Please try again.';
 }

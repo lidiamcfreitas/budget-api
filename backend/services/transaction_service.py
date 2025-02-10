@@ -6,8 +6,7 @@ import logging
 from pydantic import ValidationError
 from firebase_admin import firestore
 from .base_service import BaseService
-from models.transaction import Transaction
-from models.budget import Budget
+from models import Transaction
 from .budget_service import BudgetService
 from .category_service import CategoryService
 

@@ -8,9 +8,7 @@ from .base_service import BaseService
 from .budget_service import BudgetService
 from .category_service import CategoryService
 from .transaction_service import TransactionService
-from models.budget import Budget
-from models.transaction import Transaction
-from models.category import Category
+from models import Budget, Transaction, Category
 
 class BudgetPeriod(BaseModel):
     year: int

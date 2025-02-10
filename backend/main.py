@@ -1,15 +1,25 @@
-from services.budget_service import BudgetService
-from services.user_service import UserService
+import asyncio
 from fastapi import FastAPI, HTTPException, status, Request, Depends, Path, Body
 from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
-from typing import List
+from typing import List, Callable, Any
 from uuid import UUID
 import firebase_admin
 from firebase_admin import auth, firestore, credentials
 from models import User, Budget, CategoryGroup, Category
+from services.account_service import AccountService
+from services.budget_report_service import BudgetReportService
+from services.category_groups_service import CategoryGroupsService
+from services.category_service import CategoryService
+from services.cross_budget_transfer_service import CrossBudgetTransferService
+from services.currency_service import CurrencyService
+from services.payee_service import PayeeService
+from services.recurring_transaction_service import RecurringTransactionService
+from services.transaction_service import TransactionService
+from services.budget_service import BudgetService
 from services.user_service import UserService
+from routers import users #, budgets, categories, category_groups, reports
 
 from firestore_service import (
     create_user, get_user, create_budget, get_budget, get_user_budgets,
@@ -17,8 +27,10 @@ from firestore_service import (
     update_category_group, delete_category_group, get_monthly_budget_data,
     create_category
 )
-from utils import debug_request, get_token
+from utils import debug_request, get_token, handle_exceptions
 from logger import logger
+
+import functools
 
 def create_app():
     app = FastAPI(
@@ -48,77 +60,53 @@ def create_app():
 
     # Use the correct Firestore database
     db = firestore.client()
-    
-    # # Create services with injected dependencies
-    # budget_service = BudgetService(db)
-    # category_service = CategoryService(db)
-    # # ... other services
+
+
+    # Include routers
+    app.include_router(users.router)
+    # app.include_router(budgets.router)
+    # app.include_router(categories.router)
+    # app.include_router(category_groups.router)
+    # app.include_router(reports.router)
     
     return app, db
 
 app, db = create_app()
 
-# Create a dependency provider
+# Create a dependency provider and add services' getters
 def get_db():
     return firestore.client()
 
-def get_user_service(db: firestore.Client = Depends(get_db)):
-    return UserService(db)
+def get_account_service(db: firestore.Client = Depends(get_db)):
+    return AccountService(db)
 
-# @app.post("/")
-# async def create_user(
-#     user: User,
-#     user_service: UserService = Depends(get_user_service)
-# ):
-#     return await user_service.create_user(user)
+def get_budget_report_service(db: firestore.Client = Depends(get_db)):
+    return BudgetReportService(db)
 
-# @app.get("/")
-# async def root():
-#     return {
-#         "message": "Welcome to the Budget API. This tests the github CI/CD.",
-#         "docs": "/docs",
-#         "version": "1.0.0"
-#     }
+def get_budget_service(db: firestore.Client = Depends(get_db)):
+    return BudgetService(db)
 
-def verify_user(request: Request):
-    token = get_token(request)
-    if not token:
-        raise HTTPException(status_code=401, detail="No token provided")
-    
-    # Verify the Firebase ID token
-    decoded_token = auth.verify_id_token(token)
-    user_id = decoded_token['uid']
-    logger.info(f"Decoded user ID: {user_id}")
+def get_category_group_service(db: firestore.Client = Depends(get_db)):
+    return CategoryGroupsService(db)
 
-    return user_id
+def get_category_service(db: firestore.Client = Depends(get_db)):
+    return CategoryService(db)
 
-@app.post("/api/users", response_model=User)
-async def register_user(
-    request: Request,
-    user: User,
-    user_service: UserService = Depends(get_user_service)
-):
-    try:
-        debug_request(request)
-        verify_user(request)
-        created_user = await user_service.create_user(user)
-        return created_user
-    except Exception as e:
-        logger.error(f"Error creating user: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+def get_cross_budget_transfer_service(db: firestore.Client = Depends(get_db)):
+    return CrossBudgetTransferService(db)
 
-@app.get("/api/users/{user_id}", response_model=User)
-async def get_user_data(user_id: str):
-    user = get_user(user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    return user
+def get_currency_service(db: firestore.Client = Depends(get_db)):
+    return CurrencyService(db)
+
+def get_payee_service(db: firestore.Client = Depends(get_db)):
+    return PayeeService(db)
+
+def get_recurring_transaction_service(db: firestore.Client = Depends(get_db)):
+    return RecurringTransactionService(db)
+
+def get_transaction_service(db: firestore.Client = Depends(get_db)):
+    return TransactionService(db)
+
 
 @app.get("/routes", tags=["Debug"])
 async def list_routes():

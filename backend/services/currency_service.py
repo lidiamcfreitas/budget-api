@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 from firebase_admin import firestore
 import logging
 from .base_service import BaseService
-from exceptions import ValidationError
 import requests
 from cachetools import TTLCache
 from pydantic import BaseModel, Field, validator

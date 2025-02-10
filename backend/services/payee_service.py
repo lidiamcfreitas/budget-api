@@ -6,7 +6,7 @@ from firebase_admin import firestore
 import logging
 from .base_service import BaseService
 from models import Payee
-from exceptions import ValidationError, NotFoundError
+from exceptions import ValidationException, NotFoundException
 
 
 class MerchantType(str, Enum):
@@ -22,6 +22,8 @@ class PayeeSearchResult(BaseModel):
     payees: List[Payee]
     total_count: int
     query: str
+
+
 class PayeeService(BaseService):
     def __init__(self, db: firestore.Client):
         super().__init__()
@@ -39,11 +41,11 @@ class PayeeService(BaseService):
             Payee: Created payee with ID
             
         Raises:
-            ValidationError: If category validation fails or merchant type is invalid
+            ValidationException: If category validation fails or merchant type is invalid
         """
         try:
             if payee.merchant_type and payee.merchant_type not in MerchantType:
-                raise ValidationError(f"Invalid merchant type: {payee.merchant_type}")
+                raise ValidationException(f"Invalid merchant type: {payee.merchant_type}")
                 
             if payee.default_category_id:
                 self._validate_category_exists(payee.default_category_id)
@@ -83,14 +85,14 @@ class PayeeService(BaseService):
             Payee: Updated payee
             
         Raises:
-            NotFoundError: If payee not found
-            ValidationError: If category validation fails
+            NotFoundException: If payee not found
+            ValidationException: If category validation fails
         """
         try:
             doc_ref = self.db.collection(self.collection).document(payee_id)
             doc = doc_ref.get()
             if not doc.exists:
-                raise NotFoundError(f"Payee {payee_id} not found")
+                raise NotFoundException(f"Payee {payee_id} not found")
             
             if payee.default_category_id:
                 self._validate_category_exists(payee.default_category_id)
@@ -111,7 +113,7 @@ class PayeeService(BaseService):
         try:
             doc_ref = self.db.collection(self.collection).document(payee_id)
             if not doc_ref.get().exists:
-                raise NotFoundError(f"Payee {payee_id} not found")
+                raise NotFoundException(f"Payee {payee_id} not found")
             doc_ref.delete()
         except Exception as e:
             self.logger.error(f"Error deleting payee {payee_id}: {str(e)}")
@@ -123,7 +125,7 @@ class PayeeService(BaseService):
             doc_ref = self.db.collection(self.collection).document(payee_id)
             doc = doc_ref.get()
             if not doc.exists:
-                raise NotFoundError(f"Payee {payee_id} not found")
+                raise NotFoundException(f"Payee {payee_id} not found")
             
             payee_data = doc.to_dict()
             aliases = payee_data.get('aliases', [])
@@ -213,11 +215,11 @@ class PayeeService(BaseService):
             List of payees matching the merchant type
             
         Raises:
-            ValidationError: If merchant type is invalid
+            ValidationException: If merchant type is invalid
         """
         try:
             if merchant_type not in MerchantType:
-                raise ValidationError(f"Invalid merchant type: {merchant_type}")
+                raise ValidationException(f"Invalid merchant type: {merchant_type}")
                 
             payees = []
             docs = self.db.collection(self.collection)\
@@ -239,5 +241,5 @@ class PayeeService(BaseService):
         """Validate that a category exists."""
         category_ref = self.db.collection('categories').document(category_id)
         if not category_ref.get().exists:
-            raise ValidationError(f"Category {category_id} does not exist")
+            raise ValidationException(f"Category {category_id} does not exist")
 

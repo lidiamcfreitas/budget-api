@@ -14,11 +14,10 @@ class BudgetService(BaseService):
         self.db = db
         self.collection = 'budgets'
     
-    async def create_budget(self, user_id: str, budget: Budget) -> Budget:
+    async def create_budget(self, budget: Budget) -> Budget:
         """Create a new budget for a user.
         
         Args:
-            user_id: ID of the user creating the budget
             budget: Budget model instance containing budget details
                 
         Returns:
@@ -29,20 +28,13 @@ class BudgetService(BaseService):
             FirebaseError: If database operation fails
         """
         try:
+            user_id = budget.user_id
             self.logger.info(f"Creating new budget for user {user_id}")
             
-            # Update budget with system fields
-            budget.user_id = user_id
-            budget.created_at = datetime.utcnow()
-            budget.updated_at = datetime.utcnow()
-            
-            # Convert to dict for Firestore
-            budget_data = budget.model_dump(exclude={'id'})
-            
             doc_ref = self.db.collection(self.collection).document()
-            doc_ref.set(budget_data)
+            budget.budget_id = doc_ref.id
+            doc_ref.set(budget.dict())
             
-            budget.id = doc_ref.id
             return budget
             
         except Exception as e:
@@ -68,7 +60,7 @@ class BudgetService(BaseService):
             
             if doc.exists:
                 data = doc.to_dict()
-                data['id'] = doc.id
+                data['budget_id'] = doc.id
                 return Budget(**data)
             return None
             
@@ -97,7 +89,7 @@ class BudgetService(BaseService):
             budgets = []
             for doc in docs:
                 data = doc.to_dict()
-                data['id'] = doc.id
+                data['budget_id'] = doc.id
                 budgets.append(Budget(**data))
             
             return budgets
@@ -129,16 +121,15 @@ class BudgetService(BaseService):
                 raise ValueError(f"Budget {budget_id} not found")
             
             # Get existing data and update with new budget data
-            existing_data = doc.to_dict()
-            update_data = budget.model_dump(exclude={'id', 'user_id', 'created_at'})
-            update_data['updated_at'] = datetime.utcnow()
+            existing_budget = Budget(**doc.to_dict())
+            new_budget = existing_budget.update(**budget.dict())
             
-            doc_ref.update(update_data)
+            doc_ref.update(new_budget.dict())
             
             # Get updated document
             updated_doc = doc_ref.get()
             updated_data = updated_doc.to_dict()
-            updated_data['id'] = updated_doc.id
+            updated_data['budget_id'] = updated_doc.id
             
             return Budget(**updated_data)
             
@@ -173,4 +164,3 @@ class BudgetService(BaseService):
         except Exception as e:
             self.logger.error(f"Error deleting budget: {str(e)}")
             raise
-

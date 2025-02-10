@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Dict, Any
 
 from firebase_admin import firestore
 from google.cloud.firestore_v1.base_query import FieldFilter
@@ -7,9 +7,9 @@ from models import CategoryGroup
 
 from .base_service import BaseService
 from exceptions import (
-    ValidationError,
-    NotFoundError,
-    UnauthorizedError
+    ValidationException,
+    NotFoundException,
+    UnauthorizedException
 )
 
 
@@ -39,8 +39,8 @@ class CategoryGroupsService(BaseService):
             CategoryGroup: The created category group
 
         Raises:
-            ValidationError: If the input data is invalid
-            UnauthorizedError: If the user is not authorized
+            ValidationException: If the input data is invalid
+            UnauthorizedException: If the user is not authorized
         """
         # Ensure user_id matches
         data.user_id = user_id
@@ -68,20 +68,20 @@ class CategoryGroupsService(BaseService):
             CategoryGroup: The requested category group
 
         Raises:
-            NotFoundError: If the category group doesn't exist
-            UnauthorizedError: If the user is not authorized
+            NotFoundException: If the category group doesn't exist
+            UnauthorizedException: If the user is not authorized
         """
         doc = await self.db.collection(self.collection).document(group_id).get()
 
         if not doc.exists:
-            raise NotFoundError(f"Category group {group_id} not found")
+            raise NotFoundException(f"Category group {group_id} not found")
 
         data = doc.to_dict()
         data['id'] = doc.id
 
         category_group = CategoryGroup(**data)
         if category_group.user_id != user_id:
-            raise UnauthorizedError("Not authorized to access this category group")
+            raise UnauthorizedException("Not authorized to access this category group")
 
         return category_group
 
@@ -124,9 +124,9 @@ class CategoryGroupsService(BaseService):
             CategoryGroup: The updated category group
 
         Raises:
-            NotFoundError: If the category group doesn't exist
-            ValidationError: If the input data is invalid
-            UnauthorizedError: If the user is not authorized
+            NotFoundException: If the category group doesn't exist
+            ValidationException: If the input data is invalid
+            UnauthorizedException: If the user is not authorized
         """
         current_group = await self.get_category_group(user_id, group_id)
         
@@ -152,8 +152,8 @@ class CategoryGroupsService(BaseService):
             group_id: ID of the category group to delete
 
         Raises:
-            NotFoundError: If the category group doesn't exist
-            UnauthorizedError: If the user is not authorized
+            NotFoundException: If the category group doesn't exist
+            UnauthorizedException: If the user is not authorized
         """
         # Verify existence and ownership
         await self.get_category_group(user_id, group_id)
@@ -176,8 +176,8 @@ class CategoryGroupsService(BaseService):
             Updated category group data
 
         Raises:
-            NotFoundError: If the category group doesn't exist
-            UnauthorizedError: If the user is not authorized
+            NotFoundException: If the category group doesn't exist
+            UnauthorizedException: If the user is not authorized
         """
         category_group = await self.get_category_group(user_id, group_id)
         
@@ -207,8 +207,8 @@ class CategoryGroupsService(BaseService):
             Updated category group data
 
         Raises:
-            NotFoundError: If the category group doesn't exist
-            UnauthorizedError: If the user is not authorized
+            NotFoundException: If the category group doesn't exist
+            UnauthorizedException: If the user is not authorized
         """
         category_group = await self.get_category_group(user_id, group_id)
         

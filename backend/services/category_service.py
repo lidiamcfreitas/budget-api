@@ -1,9 +1,16 @@
 from datetime import datetime
 from typing import List, Optional
 from firebase_admin import firestore
-from .base_service import BaseService
+from .base_service import BaseService, ServiceException
 from models import Category
-from core.exceptions import CategoryNotFoundError
+
+class CategoryServiceException(ServiceException):
+    """Specific exception class for category-related errors."""
+    pass
+
+class CategoryNotFoundError(CategoryServiceException):
+    """Exception raised when a category is not found."""
+    pass
 
 class CategoryService(BaseService):
     """Service class for managing budget categories."""
