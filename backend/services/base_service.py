@@ -3,11 +3,12 @@ import logging
 from typing import Any, Dict, Optional, TypeVar
 from functools import wraps
 import traceback
-from utils import get_token, maybe_throw_not_found
+from utils import get_token, maybe_throw_not_found, handle_exceptions
 from firebase_admin import firestore, auth
 from abc import ABC, abstractmethod
 from fastapi import HTTPException, Request
 from models import BaseAuditModel
+from pprint import pformat
 
 
 T = TypeVar("T", bound=BaseAuditModel)  # Defines a generic type variable
@@ -19,31 +20,8 @@ class ServiceException(Exception):
 class NotImplementedException(Exception):
     pass
 
-def handle_exceptions(func):
-    """Decorator for consistent exception handling in service methods."""
-    @wraps(func)
-    async def async_wrapper(*args, **kwargs):
-        try:
-            return await func(*args, **kwargs)
-        except ServiceException as e:
-            # Re-raise service-specific exceptions
-            raise
-        except Exception as e:
-            # Wrap unknown exceptions
-            raise ServiceException(f"Service operation failed: {str(e)}") from e
-    
-    @wraps(func)
-    def sync_wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except ServiceException as e:
-            # Re-raise service-specific exceptions
-            raise
-        except Exception as e:
-            # Wrap unknown exceptions
-            raise ServiceException(f"Service operation failed: {str(e)}") from e
-    
-    return async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
+class DocNotFoundException(Exception):
+    pass
 
 class BaseService(ABC):
     """Base service class providing common functionality for all services."""
@@ -61,13 +39,15 @@ class BaseService(ABC):
 
     def _setup_logging(self) -> None:
         """Configure logging for the service."""
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        handler = logging.StreamHandler()
-        handler.setFormatter(formatter)
-        self.logger.addHandler(handler)
-        self.logger.setLevel(logging.INFO)
+        # Only add handler if none exist
+        if not self.logger.handlers:
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+            handler = logging.StreamHandler()
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
+            self.logger.setLevel(logging.INFO)
     
     def log_error(self, error: Exception, context: Optional[Dict[str, Any]] = None) -> None:
         """
@@ -86,9 +66,9 @@ class BaseService(ABC):
         if context:
             error_details.update(context)
         
-        self.logger.error(f"{class_name} error occurred: {error_details}")
-    
-    @handle_exceptions
+        self.logger.error(f"{class_name} error occurred: {pformat(error_details)}")
+
+    # @handle_exceptions("Error verifying user")
     async def verify_user(self, request: Request):
         token = get_token(request)
         if not token:
@@ -101,8 +81,8 @@ class BaseService(ABC):
 
         return user_id
 
-    @handle_exceptions
-    async def create(self, request: Request, collection_class: T) -> T:
+    # @handle_exceptions("Error creating document")
+    async def create(self, request: Request, collection_class: T, exclude_id=True) -> T:
         """
         Create a new document of the type T.
 
@@ -116,19 +96,30 @@ class BaseService(ABC):
             ServiceException: If document creation fails
         """
         class_name = type(self).__name__
-        self.logger.debug(f"Creating {class_name} with ID: {collection_class.id}")
-        await self.verify_user(request)
         try:
-            return await self.get_user(collection_class.id)
-        except ServiceException:
-            user_ref = self.db.collection(self.collection).document(collection_class.id)
-            user_ref.set(collection_class.dict())
-            return collection_class
+            await self.verify_user(request)
+            
+            # Log the raw collection class data
+            self.logger.info(f"Raw collection class data: {pformat(collection_class)}")
+            
+            # Get dictionary representation excluding id field
+            if exclude_id:
+                dict_data = collection_class.dict(exclude={'id'})
+            else:
+                dict_data = collection_class.dict()
+            self.logger.info(f"Dictionary representation: {pformat(dict_data)}")
+            
+            # Create the document directly
+            self.logger.info("Creating new document")
+            created_doc = collection_class.create(self.db, self.collection, exclude_id, **dict_data)
+            
+            self.logger.debug(f"Successfully created {class_name}")
+            return created_doc
         except Exception as e:
-            self.log_error(e, {'id': collection_class.id})
+            self.log_error(e)
             raise
 
-    @handle_exceptions
+    # @handle_exceptions("Error getting document")
     async def get(self, request: Request, id: str) -> T:
         """
         Retrieve document information by ID.
@@ -144,8 +135,8 @@ class BaseService(ABC):
         """
         class_name = type(self).__name__
         self.logger.debug(f"Getting {class_name} with ID: {id}")
-        await self.verify_user(request)
         try:
+            await self.verify_user(request)
             self.logger.debug("Querying Firestore for document")
             doc_ref = self.db.collection(self.collection).document(id).get()
             
@@ -156,14 +147,17 @@ class BaseService(ABC):
                 return self.__class__(**doc_data)
             else:
                 self.logger.debug(f"No {class_name} found with ID: {id}")
-                raise ServiceException(f"{class_name} not found: {id}")
+                raise DocNotFoundException(f"{class_name} not found: {id}")
                 
+        except DocNotFoundException:
+            # This is an expected case, just re-raise without error logging
+            raise
         except Exception as e:
             self.log_error(e, {'id': id})
             raise
 
 
-    @handle_exceptions
+    # @handle_exceptions("Error updating document")
     async def update(self, request: Request, id: str, doc_update: T) -> T:
         class_name = type(self).__name__
         self.logger.debug(f"Updating {class_name} with ID: {id}")
@@ -185,8 +179,8 @@ class BaseService(ABC):
         updated_doc = doc_ref.get()
         return self.__class__(**updated_doc.to_dict())
 
-    @handle_exceptions
-    async def delete(self, id: str):
+    # @handle_exceptions("Error deleting document")
+    async def delete(self, request: Request, id: str):
         class_name = type(self).__name__
         self.logger.debug(f"Deleting {class_name} with ID: {id}")
         await self.verify_user(request)

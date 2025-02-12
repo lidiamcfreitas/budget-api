@@ -1,9 +1,8 @@
 <template>
 <div class="side-menu">
     <div class="logo-section">
-    <img src="../../data/ignite_logo_white.png" alt="Ignite Logo" class="logo-image" />
-    <h1>Ignite</h1>
-    <!-- <p>Numbers harmony</p> -->
+        <img src="../../data/ignite_logo_white.png" alt="Ignite Logo" class="logo-image"/>
+        <h1>Ignite</h1>
     </div>
     <div class="budget-selector">
     <el-dropdown trigger="click" @command="handleBudgetSelect" :disabled="budgetStore.loading">
@@ -120,123 +119,110 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.current-budget {
-margin-bottom: 1rem;
-padding: 0.5rem;
-background-color: rgba(255, 255, 255, 0.1);
-border-radius: 0.25rem;
-}
-
-.current-budget .label {
-display: block;
-font-size: 0.75rem;
-color: rgba(255, 255, 255, 0.7);
-margin-bottom: 0.25rem;
-}
-
-.current-budget .value {
-font-weight: bold;
-color: white;
-}
-
-.create-budget-btn {
-width: 100%;
-margin-top: 0.5rem;
-padding: 0.5rem;
-background-color: rgba(255, 255, 255, 0.1);
-border: 1px solid rgba(255, 255, 255, 0.2);
-color: white;
-border-radius: 0.25rem;
-cursor: pointer;
-display: flex;
-align-items: center;
-justify-content: center;
-gap: 0.5rem;
-transition: background-color 0.3s;
-}
-
-.create-budget-btn:hover {
-background-color: rgba(255, 255, 255, 0.2);
-}
-
-.create-budget-btn:disabled {
-opacity: 0.7;
-cursor: not-allowed;
-}
 .side-menu {
-width: 250px;
-height: 100vh;
-background-color: #2c3e50;
-color: white;
-position: fixed;
-left: 0;
-top: 0;
-padding: 1rem;
+    width: 250px;
+    height: 100vh;
+    background-color: #2c3e50;
+    color: white;
+    position: fixed;
+    left: 0;
+    top: 0;
+    padding: 1rem;
 }
 
 .logo-section {
-padding: 1.5rem 0;
-border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-margin-bottom: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.logo-image {
+    width: 80px;
+    height: auto;
+    margin-bottom: 1rem;
+    display: block;
+    object-fit: contain;
 }
 
 .logo-section h1 {
-margin: 0;
-font-size: 1.5rem;
-text-align: center;
+    margin: 0;
+    font-size: 1.5rem;
+    color: white;
+    font-weight: 600;
+}
+
+.current-budget {
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    width: 100%;
+}
+
+.current-budget:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.current-budget .label {
+    display: block;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 0.25rem;
+}
+
+.current-budget .value {
+    font-weight: bold;
+    color: white;
 }
 
 .menu-items {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    height: calc(100vh - 250px); /* Adjust based on header height */
+    height: calc(100vh - 250px);
 }
 
-.menu-items-top, .menu-items-bottom {
+.menu-items-top,
+.menu-items-bottom {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
 }
 
 .menu-item {
-display: flex;
-align-items: center;
-padding: 0.75rem 1rem;
-color: white;
-text-decoration: none;
-border-radius: 0.25rem;
-transition: background-color 0.3s;
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    color: white;
+    text-decoration: none;
+    border-radius: 0.25rem;
+    transition: background-color 0.3s;
 }
 
 .menu-item:hover {
-background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.1);
 }
 
 .menu-item i {
-margin-right: 0.75rem;
-width: 20px;
+    margin-right: 0.75rem;
+    width: 20px;
 }
 
 .menu-item.router-link-active {
-background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
 .budget-selector {
-padding: 1rem;
-border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-margin-bottom: 1rem;
-}
-
-.current-budget {
-    cursor: pointer;
-    transition: background-color 0.3s;
     padding: 1rem;
-    width: 100%;
-}
-
-.current-budget:hover {
-    background-color: rgba(255, 255, 255, 0.2);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    margin-bottom: 1rem;
 }
 
 .el-dropdown {
@@ -249,16 +235,16 @@ margin-bottom: 1rem;
 }
 
 .loading-spinner {
-text-align: center;
-margin-top: 0.5rem;
-color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    margin-top: 0.5rem;
+    color: rgba(255, 255, 255, 0.7);
 }
 
 .error-message {
-color: #ff6b6b;
-font-size: 0.875rem;
-margin-top: 0.5rem;
-text-align: center;
+    color: #ff6b6b;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+    text-align: center;
 }
 
 .logout-btn {

@@ -24,35 +24,35 @@ if not firebase_admin._apps:
 # Use the correct Firestore database
 db = firestore.client()
 
-# User operations
-def create_user(user: User) -> None:
-    logger.debug(f"Creating user with ID: {user.user_id}")
-    if get_user(user.user_id):
-        logger.debug(f"User {user.user_id} already exists")
-        raise ValueError("User already exists.")
-    user_ref = db.collection("users").document(user.user_id)
-    logger.debug(f"Setting user data: {user.dict()}")
-    user_ref.set(user.dict())
-    logger.info(f"Successfully created user: {user.user_id}")
+# # User operations
+# def create_user(user: User) -> None:
+#     logger.debug(f"Creating user with ID: {user.user_id}")
+#     if get_user(user.user_id):
+#         logger.debug(f"User {user.user_id} already exists")
+#         raise ValueError("User already exists.")
+#     user_ref = db.collection("users").document(user.user_id)
+#     logger.debug(f"Setting user data: {user.dict()}")
+#     user_ref.set(user.dict())
+#     logger.info(f"Successfully created user: {user.user_id}")
 
-def get_user(user_id: str) -> Optional[Dict[str, Any]]:
-    logger.debug(f"Getting user with ID: {user_id}")
-    try:
-        logger.debug("Querying Firestore for user document")
-        user_ref = db.collection("users").document(user_id).get()
+# def get_user(user_id: str) -> Optional[Dict[str, Any]]:
+#     logger.debug(f"Getting user with ID: {user_id}")
+#     try:
+#         logger.debug("Querying Firestore for user document")
+#         user_ref = db.collection("users").document(user_id).get()
         
-        if user_ref.exists:
-            user_data = user_ref.to_dict()
-            logger.debug(f"Found user data: {user_data}")
-            logger.info(f"Successfully retrieved user: {user_id}")
-            return user_data
-        else:
-            logger.debug(f"No user found with ID: {user_id}")
-            return None
+#         if user_ref.exists:
+#             user_data = user_ref.to_dict()
+#             logger.debug(f"Found user data: {user_data}")
+#             logger.info(f"Successfully retrieved user: {user_id}")
+#             return user_data
+#         else:
+#             logger.debug(f"No user found with ID: {user_id}")
+#             return None
             
-    except Exception as e:
-        logger.error(f"Error getting user: {e}")
-        return None
+#     except Exception as e:
+#         logger.error(f"Error getting user: {e}")
+#         return None
 
 # Budget operations
 def find_existing_budget(user_id: str, name: str, currency: str) -> Optional[Budget]:

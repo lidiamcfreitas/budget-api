@@ -1,74 +1,74 @@
+<script setup>
+import { ref, onMounted } from 'vue';
+import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import axios from "axios";
+
+const error = ref('');
+const loading = ref(false);
+const auth = getAuth();
+
+const emit = defineEmits(['login-success', 'login-error']);
+
+onMounted(() => {
+    // Clear any existing auth state on component mount
+    auth.signOut().catch(e => {
+        console.error('Error clearing auth state:', e);
+    });
+});
+const handleGoogleLogin = async () => {
+    if (loading.value) return;
+    
+    error.value = '';
+    loading.value = true;
+    
+    try {
+        const provider = new GoogleAuthProvider();
+        const result = await signInWithPopup(auth, provider);
+        const token = await result.user.getIdToken();
+        
+        // Create or update user in backend
+        await axios.post("http://127.0.0.1:8000/api/users", 
+            {
+                id: result.user.uid,
+                email: result.user.email,
+                name: result.user.displayName,
+            },
+            {
+                headers: { Authorization: `Bearer ${token}` },
+            }
+        );
+        
+        emit('login-success', { 
+            uid: result.user.uid,
+            email: result.user.email,
+            displayName: result.user.displayName,
+            token
+        });
+        
+    } catch (e) {
+        console.error('Login error:', e);
+        error.value = e.response?.data?.message || e.message || 'Failed to login. Please try again.';
+        emit('login-error', error.value);
+        
+        // Clear auth state on error
+        auth.signOut().catch(console.error);
+    } finally {
+        loading.value = false;
+    }
+};
+</script>
+
 <template>
     <div class="login-container">
         <div class="login-box">
             <h2>Login</h2>
 
             <button type="button" @click="handleGoogleLogin" :disabled="loading" class="google-button">
-                    {{ loading ? 'Logging in...' : 'Login with Google' }}
+                {{ loading ? 'Logging in...' : 'Login with Google' }}
             </button>
         </div>
     </div>
 </template>
-
-<script setup>
-import { ref } from 'vue';
-import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { useRouter } from 'vue-router';
-import axios from "axios";
-
-const router = useRouter();
-const error = ref('');
-const loading = ref(false);
-
-const emit = defineEmits(['login-success', 'login-error']);
-
-const handleGoogleLogin = async () => {
-    error.value = '';
-    loading.value = true;
-
-    try {
-        const auth = getAuth();
-        const provider = new GoogleAuthProvider();
-        const result = await signInWithPopup(auth, provider);
-
-        try {
-            const token = await result.user.getIdToken();  // << This is the correct token
-
-            console.log("Firebase ID Token:", token); // Debugging: Check if it's a valid JWT
-
-            console.log("Token: ", result.user.uid);
-
-            const response = await axios.post("http://127.0.0.1:8000/api/users",
-                {
-                    user_id: result.user.uid,
-                    email: result.user.email,
-                    name: result.user.displayName,
-                },
-                {
-                    headers: { Authorization: `Bearer ${token}` },
-                }
-            );
-
-            if (response.data.success) {
-                emit('login-success', result.user);
-                router.push('/dashboard');
-            }
-        } catch (e) {
-            console.error('DB user creation failed:', e);
-            error.value = e.message || 'DB user creation failed.';
-            emit('login-error', e);
-        } finally {
-            loading.value = false;
-        }
-    } catch (e) {
-        console.error('Google login error:', e);
-        error.value = e.message || 'Failed to login with Google. Please try again.';
-        emit('login-error', e);
-    } finally {
-        loading.value = false;
-    }
-};
-</script>
 
 <style scoped>
 .login-container {

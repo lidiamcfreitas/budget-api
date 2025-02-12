@@ -57,7 +57,6 @@ async function logout() {
 function initializeAuthListener() {
     const auth = getAuth()
     onAuthStateChanged(auth, (firebaseUser) => {
-    loading.value = true
     try {
         if (firebaseUser) {
         user.value = firebaseUser

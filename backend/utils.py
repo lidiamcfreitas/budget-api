@@ -4,6 +4,7 @@ from typing import Callable, Any
 from fastapi import  Request, status, HTTPException
 from pydantic import validator
 import logging
+from firebase_admin import auth
 
 # Store valid currencies in a separate JSON file
 import json
@@ -16,7 +17,7 @@ with open(CURRENCY_FILE, "r") as file:
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,  # Change to DEBUG for more details
+    level=logging.DEBUG,  # Change to DEBUG for more details
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
@@ -48,6 +49,15 @@ def maybe_throw_not_found(ref: Any, error_message: str):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=error_message
+        )
+    
+def assert_user_matches(request: Request, user_id: str):
+    token = get_token(request)
+    decoded_token = auth.verify_id_token(token)
+    if decoded_token['uid'] != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this user's data"
         )
 
 def handle_exceptions(error_message: str):

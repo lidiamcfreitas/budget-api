@@ -25,7 +25,6 @@ const auth = getAuth(firebaseApp)
 const db = getFirestore(firebaseApp)
 
 // Create Vue app
-// Create app instance
 const app = createApp(App)
 
 // Create and use Pinia before router

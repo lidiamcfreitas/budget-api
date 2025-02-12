@@ -21,7 +21,7 @@ class FrequencyType(str, Enum):
 class BaseAuditModel(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-
+    
     def update(self, **kwargs):
         self.updated_at = datetime.utcnow()
         return super().copy(update=kwargs)
@@ -32,19 +32,26 @@ class BaseAuditModel(BaseModel):
         return db.collection(collection_path).document().id
 
     @classmethod
-    def create(cls, db: firestore.Client, collection_path: str, **data):
+    def create(cls, db: firestore.Client, collection_path: str, exclude_id: bool, **data):
         """Create a new document with a generated ID."""
-        doc_id = cls.generate_id(db, collection_path)
-        instance = cls(id=doc_id, **data)
-        db.collection(collection_path).document(doc_id).set(instance.dict())
+        if exclude_id or "id" not in data:
+            # Gets a new id from firestore and excludes the one in the data
+            doc_id = cls.generate_id(db, collection_path)
+            instance = cls(id=doc_id, **data)
+        else:
+            # Use the provided id
+            instance = cls(**data)
+        db.collection(collection_path).document(data['id']).set(instance.dict())
         return instance
 
 class User(BaseAuditModel):
+    id: Optional[str] = None  # Firestore document ID (optional when creating)
     email: str
     name: Optional[str] = None
     default_budget_id: Optional[str] = None
 
 class Budget(BaseAuditModel):
+    id: Optional[str] = None  # Firestore document ID (optional when creating)
     user_id: str
     name: str
     currency: str
@@ -53,6 +60,7 @@ class Budget(BaseAuditModel):
         return f"users/{self.user_id}/budgets/{self.budget_id}"
 
 class Payee(BaseAuditModel):
+    id: Optional[str] = None  # Firestore document ID (optional when creating)
     user_id: str
     name: str
     default_category_id: Optional[str]  # Default category for this payee
@@ -61,11 +69,13 @@ class Payee(BaseAuditModel):
     imported_aliases: Optional[List[str]]  # Imported payees that match these will be renamed.
 
 class CategoryGroup(BaseAuditModel):
+    id: Optional[str] = None  # Firestore document ID (optional when creating)
     user_id: str
     budget_id: str
     name: str
 
 class Category(BaseAuditModel):
+    id: Optional[str] = None  # Firestore document ID (optional when creating)
     group_id: str
     name: str
     cash_left_over: int = 0 # Cash left over from last month
@@ -131,6 +141,7 @@ class Category(BaseAuditModel):
 
 
 class Account(BaseAuditModel):
+    id: Optional[str] = None  # Firestore document ID (optional when creating)
     budget_id: str
     user_id: str
     name: str
@@ -143,6 +154,7 @@ class Account(BaseAuditModel):
         return f"users/{self.user_id}/budgets/{self.budget_id}/accounts/{self.id}"
 
 class Transaction(BaseAuditModel):
+    id: Optional[str] = None  # Firestore document ID (optional when creating)
     account_id: str
     amount: int  # Stored in cents
     date: datetime
@@ -161,6 +173,7 @@ class RecurringTransaction(Transaction):
     frequency: FrequencyType  # Type of recurrence (daily, weekly, monthly, yearly)
 
 class CrossBudgetTransfer(BaseAuditModel):
+    id: Optional[str] = None  # Firestore document ID (optional when creating)
     from_budget_id: str
     to_budget_id: str
     from_account_id: str
@@ -171,6 +184,7 @@ class CrossBudgetTransfer(BaseAuditModel):
     notes: Optional[str]
 
 class Currency(BaseModel):
+    id: Optional[str] = None  # Firestore document ID (optional when creating)
     currency_code: str
     exchange_rates: Dict[str, float]
     last_updated: datetime = Field(default_factory=datetime.utcnow)

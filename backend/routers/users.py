@@ -1,13 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status, Path, Body
-from firebase_admin import auth, firestore
+from fastapi import APIRouter, Depends, Request, status, Path, Body, HTTPException
+from firebase_admin import firestore
 from typing import List
 from models import User
 from services.user_service import UserService
-from utils import get_token, debug_request, handle_exceptions
+from utils import assert_user_matches, get_token, debug_request, handle_exceptions, maybe_throw_not_found
+
+route = "users"
+Service = UserService
+Model = User
 
 router = APIRouter(
-    prefix="/api/users",
-    tags=["Users"],
+    prefix=f"/api/{route}",
+    tags=[route.capitalize()],
     responses={401: {"description": "Unauthorized"}}
 )
 
@@ -15,95 +19,82 @@ router = APIRouter(
 def get_db():
     return firestore.client()
 
-def get_user_service(db: firestore.Client = Depends(get_db)):
-    return UserService(db)
+def get_service(db: firestore.Client = Depends(get_db)):
+    return Service(db)
 
 
-@router.post("", response_model=User)
-@handle_exceptions("Error creating user")
-async def register_user(
+@router.post("", response_model=Model)
+@handle_exceptions(f"Error creating {route}")
+async def create(
     request: Request,
-    user: User,
-    user_service: UserService = Depends(get_user_service)
+    doc: Model,
+    service: Service = Depends(get_service)
 ):
-    debug_request(request)
-    user_service.verify_user(request)
-    return await user_service.create_user(user)
+    assert doc.id is not None, "ID is required"
+    try:
+        debug_request(request)
+        return await service.create(request, doc)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.get("/{user_id}", response_model=User)
-@handle_exceptions("Error getting user")
-async def get_user_data(
+@router.get("/{id}", response_model=Model)
+@handle_exceptions(f"Error getting {route}")
+async def get(
     request: Request,
-    user_id: str,
-    user_service: UserService = Depends(get_user_service),
+    id: str,
+    service: Service = Depends(get_service),
 ):
-    user_service.verify_user(request)
-    user = await user_service.get_user(user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    return user
+    try:
+        assert_user_matches(request, id)
+        doc = await service.get(request, id)
+        maybe_throw_not_found(doc, f"{route} not found")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return doc
 
 
-@router.put("/{user_id}", response_model=User)
-@handle_exceptions("Error updating user")
-async def update_user(
+@router.put("/{id}", response_model=Model)
+@handle_exceptions(f"Error updating {route}")
+async def update(
     request: Request,
-    user_id: str = Path(..., description="The ID of the user to update"),
-    user_update: User = Body(..., description="Updated user information"),
-    user_service: UserService = Depends(get_user_service)
+    id: str = Path(..., description="The ID of the doc to update"),
+    doc_update: User = Body(..., description="Updated doc information"),
+    service: Service = Depends(get_service)
 ):
-    user_service.verify_user(request)
-    # Verify user exists
-    existing_user = await user_service.get_user(user_id)
-    if not existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
+    try:
+        # Verify doc exists
+        existing_doc = await service.get(request, id)
+        maybe_throw_not_found(existing_doc, f"Doc in {route} not found")
+        
+        # Verify the requesting user has permission to update this doc
+        assert_user_matches(request, id)
+
+        update_data = doc_update.dict(exclude_unset=True)
+        updated_doc = await service.update(request, id, update_data)
+        return updated_doc
     
-    # Verify the requesting user has permission to update this user
-    token = get_token(request)
-    decoded_token = auth.verify_id_token(token)
-    if decoded_token['uid'] != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update this user"
-        )
-
-    update_data = user_update.dict(exclude_unset=True)
-    updated_user = await user_service.update_user(user_id, update_data)
-    return updated_user
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-@handle_exceptions("Error deleting user")
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@handle_exceptions("Error deleting doc")
 async def delete_user(
     request: Request,
-    user_id: str = Path(..., description="The ID of the user to delete"),
-    user_service: UserService = Depends(get_user_service)
+    id: str = Path(..., description="The ID of the doc to delete"),
+    service: Service = Depends(get_service)
 ):
-    user_service.verify_user(request)
-    # Verify user exists
-    existing_user = await user_service.get_user(user_id)
-    if not existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
+    try:
+        existing_doc = await service.get(request, id)
+        maybe_throw_not_found(existing_doc, f"Doc in {route} not found")
+        
+        # Verify the requesting user has permission to delete this doc
+        assert_user_matches(request, id)
+
+        await service.delete(request, id)
+        return None
     
-    # Verify the requesting user has permission to delete this user
-    token = get_token(request)
-    decoded_token = auth.verify_id_token(token)
-    if decoded_token['uid'] != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to delete this user"
-        )
-    
-    await user_service.delete_user(user_id)
-    return None
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
